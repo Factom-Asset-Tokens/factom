@@ -25,7 +25,7 @@ package factom
 import (
 	"crypto/sha256"
 
-	"golang.org/x/crypto/ed25519"
+	"crypto/ed25519"
 )
 
 // IDKey is the interface implemented by the four ID and SK Key types.

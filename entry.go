@@ -32,7 +32,7 @@ import (
 	"math/rand"
 	"time"
 
-	"golang.org/x/crypto/ed25519"
+	"crypto/ed25519"
 )
 
 // ChainID returns the chain ID for a set of NameIDs.

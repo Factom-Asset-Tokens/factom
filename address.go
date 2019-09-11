@@ -29,7 +29,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 
-	"golang.org/x/crypto/ed25519"
+	"crypto/ed25519"
 )
 
 // Notes: This file contains all types, interfaces, and methods related to

@@ -28,7 +28,7 @@ import (
 	"crypto/sha256"
 	"database/sql/driver"
 
-	"golang.org/x/crypto/ed25519"
+	"crypto/ed25519"
 )
 
 // Defines IDKeys ID1Key - ID4Key and corresponding SKKeys SK1Key - SK4Key.

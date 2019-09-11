@@ -22,7 +22,7 @@
 
 package factom
 
-import "golang.org/x/crypto/ed25519"
+import "crypto/ed25519"
 
 // RCDPrivateKey is the interface implemented by the four SK Key types and the
 // Fs Address type.
