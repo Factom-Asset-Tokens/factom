@@ -28,7 +28,7 @@ import (
 	"testing"
 
 	"github.com/AdamSLevy/jsonrpc2/v11"
-	. "github.com/Factom-Asset-Tokens/fatd/factom"
+	. "github.com/Factom-Asset-Tokens/factom"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

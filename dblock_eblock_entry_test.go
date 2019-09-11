@@ -26,7 +26,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/Factom-Asset-Tokens/fatd/factom"
+	. "github.com/Factom-Asset-Tokens/factom"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
