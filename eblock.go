@@ -31,7 +31,7 @@ import (
 	"time"
 
 	merkle "github.com/AdamSLevy/go-merkle"
-	jrpc "github.com/AdamSLevy/jsonrpc2/v11"
+	jrpc "github.com/AdamSLevy/jsonrpc2/v12"
 )
 
 // EBlock represents a Factom Entry Block.

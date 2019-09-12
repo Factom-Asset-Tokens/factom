@@ -210,7 +210,7 @@ var identityTests = []struct {
 
 var factomServer = "https://courtesy-node.factom.com"
 
-var c = NewClient()
+var c = NewClient(nil, nil)
 
 func TestIdentity(t *testing.T) {
 	for _, test := range identityTests {

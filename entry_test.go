@@ -27,7 +27,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/AdamSLevy/jsonrpc2/v11"
+	"github.com/AdamSLevy/jsonrpc2/v12"
 	. "github.com/Factom-Asset-Tokens/factom"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -130,7 +130,7 @@ func TestEntry(t *testing.T) {
 	ec, _ := NewECAddress(ecAddressStr)
 	chainID := ChainID([]Bytes{Bytes(ec[:])})
 	t.Run("ComposeCreate", func(t *testing.T) {
-		c := NewClient()
+		c := NewClient(nil, nil)
 		es, err := ec.GetEsAddress(c)
 		if _, ok := err.(jsonrpc2.Error); ok {
 			// Skip if the EC address is not in the wallet.
@@ -168,7 +168,7 @@ func TestEntry(t *testing.T) {
 		fmt.Println("Chain ID: ", e.ChainID)
 	})
 	t.Run("Create", func(t *testing.T) {
-		c := NewClient()
+		c := NewClient(nil, nil)
 		c.Factomd.DebugRequest = true
 		c.Walletd.DebugRequest = true
 		balance, err := ec.GetBalance(c)
