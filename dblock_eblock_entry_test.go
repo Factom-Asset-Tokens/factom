@@ -35,7 +35,7 @@ var courtesyNode = "https://courtesy-node.factom.com"
 
 func TestDataStructures(t *testing.T) {
 	height := uint32(166587)
-	c := NewClient()
+	c := NewClient(nil, nil)
 	//c.Factomd.DebugRequest = true
 	db := &DBlock{}
 	db.Header.Height = height
