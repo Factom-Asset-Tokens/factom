@@ -24,3 +24,12 @@ factomd API
 - Work with FA/FsAddresses and EC/EcAddresses
 - Load an Identity and its IDKeys
 - Work with ID1-4Keys
+
+## Contributing
+
+This repo is heavily influenced by the [`Factom Asset Token
+Daemon`](https://github.com/Factom-Asset-Tokens/fatd) repo. As such the
+[CONTRIBUTING.md](https://github.com/Factom-Asset-Tokens/fatd/blob/develop/CONTRIBUTING.md)
+and
+[CODE_POLICY.md](https://github.com/Factom-Asset-Tokens/fatd/blob/develop/CODE_POLICY.md)
+files from that repo are required reading for contributing.
