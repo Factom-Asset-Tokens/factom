@@ -24,7 +24,7 @@ package factom
 
 import (
 	"fmt"
-	jrpc "github.com/AdamSLevy/jsonrpc2/v12"
+	"github.com/AdamSLevy/jsonrpc2/v12"
 )
 
 // Client makes RPC requests to factomd's and factom-walletd's APIs.  Client
@@ -33,9 +33,9 @@ import (
 // BasicAuth settings to set up BasicAuth and http.Client's transport settings
 // to configure TLS.
 type Client struct {
-	Factomd       *jrpc.Client
+	Factomd       *jsonrpc2.Client
 	FactomdServer string
-	Walletd       *jrpc.Client
+	Walletd       *jsonrpc2.Client
 	WalletdServer string
 }
 
@@ -45,14 +45,14 @@ const (
 	WalletdDefault = "http://localhost:8089"
 )
 
-// NewClient returns a pointer to a Client initialized with the default
-// localhost endpoints for factomd and factom-walletd, and 15 second timeouts
-// for each of the http.Clients.
-func NewClient(factomDoer, walletDoer jrpc.RequestDoer) *Client {
+// NewClient returns a pointer to a new Client initialized with the default
+// localhost endpoints for factomd and factom-walletd. If factomdDoer or
+// walletdDoer is nil, the default http.Client is used. See jsonrpc2.NewClient
+// for more details.
+func NewClient(factomdDoer, walletdDoer jsonrpc2.RequestDoer) *Client {
 	c := &Client{FactomdServer: FactomdDefault, WalletdServer: WalletdDefault}
-
-	c.Factomd = jrpc.NewClient(factomDoer)
-	c.Walletd = jrpc.NewClient(walletDoer)
+	c.Factomd = jsonrpc2.NewClient(factomdDoer)
+	c.Walletd = jsonrpc2.NewClient(walletdDoer)
 	return c
 }
 
