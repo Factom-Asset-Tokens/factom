@@ -82,9 +82,6 @@ func (e *Entry) Get(c *Client) error {
 	if e.Hash == nil {
 		return fmt.Errorf("Hash is nil")
 	}
-	if e.ChainID == nil {
-		return fmt.Errorf("ChainID is nil")
-	}
 	// If the Entry is already populated then there is nothing to do. If
 	// the Hash is nil, we cannot populate it anyway.
 	if e.IsPopulated() {
