@@ -108,7 +108,7 @@ var txUnmarshalBinaryTests = []struct {
 	},
 	{
 		Name: "valid (1 ec out)",
-		Data: hexToBytes(
+		Data: NewBytesFromString(
 			"02016d16b4aac301000183dd95b22031a14669cd993de61b28454222c75e33f3a3a51eddd8394a150b0068778e9ebc83dd80c2304fe2a4a9debe6bd58e4424c9e1d00dc9e71a23c8c6b9e9db96d478012181cc0801b60844047ee177e4e22bdd48819694fdec025f432f482e820e06d0023befe690e295e854af57c60e8610a28dd743f5427a868f48c10e41e1373c01537d91bea1f0703058e0dd8a5620b81746d6b435f0ddc35daeee496d5dd8f5134fed34490d"),
 		TxID: NewBytes32FromString(
 			"ff61ee20adda5cbb4ab2eb583881e94b707746660900c6a55c11e3a1e5a7de69"),
@@ -117,12 +117,21 @@ var txUnmarshalBinaryTests = []struct {
 	},
 	{
 		Name: "valid (4 fct in, 3 fct out)",
-		Data: hexToBytes(
+		Data: NewBytesFromString(
 			"020154e64948850403008efca5d4105706ce61e91f33eb5506e86a717285a4dbcedb6678e8ffc326a3b11d3aa36123c0dbe8826b53435eb1ee2692ce5a9cb356eba3bfa8dd93f6470551812259d57bd4c13d629292f8b44ed1f8785ae9a13126d566c6cbed3a592b16570d3a7928fe3f6a1782b1caeaee5492e4d7deae75c641be9c4b1ad1d937829c79c397d70c3c2f2745a2d66b9012cfea55bbbba15182dff0d6ff1854053af90420a3c455828e5e7ef5057ebeae2bcf6fb9db62a8de66b1a26e158986b1aaa5f17048d2e5a20571043b492abc1a9d40072c31ee86c0a408b6ef3fd5efc2a7462a328aa3a6dcdb7e8ef427e0978bd09f941a8d2586ce1c6401f2d7663914c6c350555e0bfe32ac010171230c7848588d5de3855fd4d526e302e9c8a309ab591335b5d1d3a071e583f363aee6fbc0ea9bf703644f8199612e2029fdd4f43cfc28d73811228d7b35d88773f59019440e4646b3e8d499cd7e2b1171693dc071543a1e330c22057038ab00012aca1b1cf03adf48039dcca868d93cfe30faa7c931703a3c397b96f846cfb373537273acde3366b8c0d675ce6fd0d3f9f3f0800aaf0afd5b750c482ab12ca52b86fadcb7aba08fb3430f4fab9acf90f2d60daddd9cd9da65143e247339584a0401dd6db3e73e140c28d1f003992ee084623de8b4e955e89c20df73d0d899ad86b0d9d0e5e988031c28879e028ef80301f42fdebb0993dc213a49bc117b24617a151ff200d1d2d907735b7ad90fde18f914e187abaa6c5f4add357113363a67d407012c2df5f3987d34a9ec9a814d6017122a1e78d4569785c7bc8277ed3f8c1e3957ad90bbbd9f2eb774f8e2713a37721a2f7a5e3ae510eacdeeff362e44ade6037a8d33745eced481d9e72527702d5cd887fe19295f0ee204807dc6ce76d1c6ba01"),
 		TxID: NewBytes32FromString(
 			"fa323daccaa9959b27b5a2f4efa5938a3ba9c99e11ef7af6406035d2e06ce286"),
 		FullHash: NewBytes32FromString(
 			"0bc0affe278911b1c59e3ffbe803842787d3d76c3ea42d68250a5b5de5e2b420"),
+	},
+	{
+		Name: "valid (coinbase)",
+		Data: NewBytesFromString(
+			"02015da7414a57000000"),
+		TxID: NewBytes32FromString(
+			"406dbd6e0f09352f079d4a41b3d9fa57b91a0df131ad6198d68f829663ddaece"),
+		FullHash: NewBytes32FromString(
+			"406dbd6e0f09352f079d4a41b3d9fa57b91a0df131ad6198d68f829663ddaece"),
 	},
 	// TODO: Add invalid tests
 }
@@ -133,7 +142,7 @@ func TestFactoidTransaction_UnmarshalBinary(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
 			f := FactoidTransaction{}
-			err := f.UnmarshalBinary(test.Data)
+			read, err := f.Decode(test.Data)
 			if len(test.Error) == 0 {
 				require.NoError(err)
 				require.NotNil(f.FCTInputs)
@@ -141,6 +150,7 @@ func TestFactoidTransaction_UnmarshalBinary(t *testing.T) {
 				assert.NoError(err)
 				assert.Equal(*test.TxID, *f.TransactionID)
 				assert.Equal(test.FullHash, hash)
+				assert.Equal(read, len(test.Data))
 			} else {
 				require.EqualError(err, test.Error)
 			}

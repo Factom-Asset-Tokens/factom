@@ -21,6 +21,7 @@ type FactoidTransaction struct {
 }
 
 type FactoidTransactionHeader struct {
+	// TransactionID is not in the marshalled binary
 	TransactionID *Bytes32 `json:"txid"`
 
 	Version uint64 `json:"version"`
@@ -94,7 +95,6 @@ func (f *FactoidTransaction) Get(c *Client) error {
 		return err
 	}
 
-	// TODO: handle the response bytes
 	if err := f.UnmarshalBinary(result.Data); err != nil {
 		return err
 	}
@@ -120,7 +120,6 @@ func (f *FactoidTransaction) ComputeTransactionID() (Bytes32, error) {
 	}
 
 	txid := Bytes32(sha256.Sum256(data))
-	f.TransactionID = &txid
 	return txid, nil
 }
 
@@ -137,7 +136,7 @@ func (f *FactoidTransaction) ComputeFullHash() (*Bytes32, error) {
 }
 
 // MarshalLedgerBinary marshals the transaction ledger fields to their binary representation.
-// This exludes the signature blocks
+// This excludes the signature blocks
 func (f *FactoidTransaction) MarshalLedgerBinary() ([]byte, error) {
 	// TODO: More checks up front?
 	if !f.IsPopulated() {
@@ -286,20 +285,22 @@ const (
 
 )
 
-func (f *FactoidTransaction) UnmarshalBinary(data []byte) error {
+// Decode will consume as many bytes as necessary to unmarshal the factoid
+// transaction. It will return the number of bytes read and an error.
+func (f *FactoidTransaction) Decode(data []byte) (int, error) {
 	// TODO: Some length checks to prevent too few/too many bytes
 
 	// Decode header
 	i, err := f.DecodeHeader(data)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// Decode the inputs
 	f.FCTInputs = make([]FactoidTransactionIO, f.InputCount)
 	read, err := FactoidTransactionIOs(f.FCTInputs).Decode(data[i:])
 	if err != nil {
-		return err
+		return 0, err
 	}
 	i += read
 
@@ -307,7 +308,7 @@ func (f *FactoidTransaction) UnmarshalBinary(data []byte) error {
 	f.FCTOutputs = make([]FactoidTransactionIO, f.FCTOutputCount)
 	read, err = FactoidTransactionIOs(f.FCTOutputs).Decode(data[i:])
 	if err != nil {
-		return err
+		return 0, err
 	}
 	i += read
 
@@ -315,7 +316,7 @@ func (f *FactoidTransaction) UnmarshalBinary(data []byte) error {
 	f.ECOutputs = make([]FactoidTransactionIO, f.ECOutputCount)
 	read, err = FactoidTransactionIOs(f.ECOutputs).Decode(data[i:])
 	if err != nil {
-		return err
+		return 0, err
 	}
 	i += read
 
@@ -325,18 +326,25 @@ func (f *FactoidTransaction) UnmarshalBinary(data []byte) error {
 		// f.Signatures[i] = new(FactoidTransactionSignature)
 		read, err := f.Signatures[c].Decode(data[i:])
 		if err != nil {
-			return err
+			return 0, err
 		}
 		i += read
 	}
 
 	txid, err := f.ComputeTransactionID()
 	if err != nil {
-		return err
+		return 0, err
 	}
 	f.TransactionID = &txid
 
-	return nil
+	return i, err
+}
+
+// UnmarshalBinary unmarshals the data into a factoid transaction.
+func (f *FactoidTransaction) UnmarshalBinary(data []byte) error {
+	// TODO: Some length checks to prevent too few/too many bytes
+	_, err := f.Decode(data)
+	return err
 }
 
 func (f *FactoidTransaction) DecodeHeader(data []byte) (int, error) {
