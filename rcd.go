@@ -50,7 +50,10 @@ func DecodeRCD(data []byte) (reedemCondition RCD, read int, err error) {
 		return nil, 0, fmt.Errorf("insufficient length")
 	}
 
-	version, _ := varintf.Decode(data)
+	version, r := varintf.Decode(data)
+	if r == -1 {
+		return nil, 0, fmt.Errorf("invalid varint")
+	}
 	switch version {
 	case 1:
 		rcd := new(RCD1)
