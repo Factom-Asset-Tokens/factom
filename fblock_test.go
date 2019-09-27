@@ -91,6 +91,35 @@ func TestFactoidBlock_UnmarshalBinary(t *testing.T) {
 				require.EqualError(err, test.Error)
 			}
 		})
+
+		// Retrieving the values from the Get which "hits" factomd
+		t.Run("Get/UnmarshalBinary/"+test.Name, func(t *testing.T) {
+			if test.Error != "" {
+				return // This fblock is invalid, so cannot be got
+			}
+
+			if test.KeyMr == nil {
+				return // Need a keymr to try the Get
+			}
+
+			// assert := assert.New(t)
+			assert := assert.New(t)
+			require := require.New(t)
+
+			// Testing fetching the fblock by keymr
+			f := FBlock{KeyMR: test.KeyMr}
+			cl := ClientWithFixedRPCResponse(struct {
+				Data Bytes `json:"data"`
+			}{test.Data})
+			err := f.Get(NewClient(cl, nil))
+			require.NoError(err)
+
+			assert.Equal(test.KeyMr, f.KeyMR)
+			assert.Equal(test.LedgerKeyMR, f.LedgerKeyMR)
+			for _, transaction := range f.Transactions {
+				assert.Equal(true, transaction.Valid())
+			}
+		})
 	}
 
 	// To ensure there is not panics and all errors are caught

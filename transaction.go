@@ -40,6 +40,8 @@ type FactoidTransactionIO struct {
 	// Address can be an SHA256d(RCD) for FCT in/out, or a public key for EC out.
 	// It is the encoded bytes into the human readable addresses
 	Address *Bytes32 `json:"address"`
+
+	// TODO: Do you want to also put the human readable address when we unmarshal?
 }
 
 type FactoidTransactionSignature struct {

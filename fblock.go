@@ -87,21 +87,20 @@ func (fb *FBlock) Get(c *Client) (err error) {
 	if fb.IsPopulated() {
 		return nil
 	}
-	// defer func() {
-	// 	if err != nil {
-	// 		return
-	// 	}
-	// 	var keyMR Bytes32
-	// 	if keyMR, err = db.ComputeKeyMR(); err != nil {
-	// 		return
-	// 	}
-	// 	if *db.KeyMR != keyMR {
-	// 		err = fmt.Errorf("invalid key merkle root")
-	// 		return
-	// 	}
-	// }()
 
 	if fb.KeyMR != nil {
+		orig := fb.KeyMR
+		defer func() { // Ensure we got the block we asked for
+			if err != nil {
+				return
+			}
+
+			if fb.KeyMR != nil && *orig != *fb.KeyMR {
+				err = fmt.Errorf("invalid key merkle root")
+				return
+			}
+		}()
+
 		params := struct {
 			Hash *Bytes32 `json:"hash"`
 		}{Hash: fb.KeyMR}
@@ -114,23 +113,18 @@ func (fb *FBlock) Get(c *Client) (err error) {
 		return fb.UnmarshalBinary(result.Data)
 	}
 
-	// params := struct {
-	// 	Height uint32 `json:"height"`
-	// }{fb.Header.Height}
-	// result := struct {
-	// 	DBlock *DBlock
-	// }{DBlock: fb}
-	// if err := c.FactomdRequest("dblock-by-height", params, &result); err != nil {
-	// 	return err
-	// }
-	//
-	// for ebi := range db.EBlocks {
-	// 	eb := &db.EBlocks[ebi]
-	// 	eb.Timestamp = db.Header.Timestamp
-	// 	eb.Height = db.Header.Height
-	// }
+	params := struct {
+		Height uint32 `json:"height"`
+	}{fb.Header.Height}
+	result := struct {
+		// We will ignore all the other fields, and just unmarshal from the raw.
+		RawData Bytes `json:"rawdata"`
+	}{}
+	if err := c.FactomdRequest("fblock-by-height", params, &result); err != nil {
+		return err
+	}
 
-	return nil
+	return fb.UnmarshalBinary(result.RawData)
 }
 
 const (
