@@ -144,6 +144,8 @@ const (
 		0 + // Header Expansion Area (Min 0)
 		4 + // Transaction Count
 		4 // Body Size
+
+	FBlockMinTotalLen = FBlockMinHeaderLen
 )
 
 // UnmarshalBinary unmarshals raw directory block data.
@@ -166,15 +168,19 @@ const (
 // [Tx N (Bytes)] +
 //
 // https://github.com/FactomProject/FactomDocs/blob/master/factomDataStructureDetails.md#factoid-block
-func (fb *FBlock) UnmarshalBinary(data []byte) error {
+func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
+	// Because the length of an FBlock is hard to define up front, we will catch
+	// any sort of out of bound errors in a recover
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("failed to unmarshal")
+		}
+	}()
+
 	// TODO: More length checks up front
-	// if len(data) < FBlockMinTotalLen {
-	// 	return fmt.Errorf("insufficient length")
-	// }
-	// TODO: There isn't a max
-	// if len(data) > FBlockMaxTotalLen {
-	// 	return fmt.Errorf("invalid length")
-	// }
+	if len(data) < FBlockMinTotalLen {
+		return fmt.Errorf("insufficient length")
+	}
 
 	if bytes.Compare(data[:32], factoidBlockChainID[:]) != 0 {
 		return fmt.Errorf("invalid factoid chainid")

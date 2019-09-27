@@ -23,6 +23,7 @@
 package factom_test
 
 import (
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -48,6 +49,18 @@ var fblockUnmarshalBinaryTests = []struct {
 		LedgerKeyMR: NewBytes32FromString("90d5b525a1300d77f23faf69b5fef53ce3f739805a0045c68d6ccf57b5685e84"),
 	},
 	// TODO: Add invalid tests
+	{
+		Name: "invalid (no data)",
+		Data: NewBytesFromString(
+			""),
+		Error: "insufficient length",
+	},
+	{
+		Name: "invalid (bad fct chain)",
+		Data: append(NewBytesFromString(
+			"000000000000000000000000000000000000000000000000000000000000000a"), make([]byte, 300)...),
+		Error: "invalid factoid chainid",
+	},
 }
 
 func TestFactoidBlock_UnmarshalBinary(t *testing.T) {
@@ -71,9 +84,26 @@ func TestFactoidBlock_UnmarshalBinary(t *testing.T) {
 
 				assert.Equal(test.KeyMr, f.KeyMR)
 				assert.Equal(test.LedgerKeyMR, f.LedgerKeyMR)
+				for _, transaction := range f.Transactions {
+					assert.Equal(true, transaction.Valid())
+				}
 			} else {
 				require.EqualError(err, test.Error)
 			}
 		})
 	}
+
+	// To ensure there is not panics and all errors are caught
+	t.Run("UnmarshalBinary/Random", func(t *testing.T) {
+		for i := 0; i < 1000; i++ {
+			d := make([]byte, rand.Intn(5000))
+			rand.Read(d)
+
+			f := FBlock{}
+			err := f.UnmarshalBinary(d)
+			if err == nil {
+				t.Errorf("expected an error")
+			}
+		}
+	})
 }
