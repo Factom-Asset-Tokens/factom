@@ -44,7 +44,7 @@ type FBlock struct {
 
 	Header FBlockHeader `json:"header"`
 
-	Transactions []*FactoidTransaction
+	Transactions []*FactoidTransaction `json:"transactions"`
 
 	// End of Minute transaction heights.  The mark the height of the first entry of
 	// the NEXT period.  This entry may not exist.  The Coinbase transaction is considered
@@ -63,8 +63,8 @@ type FBlockHeader struct {
 
 	// ExpansionBytes is the expansion space in the fblock. If we do not understand the
 	// expansion, we just store the raw bytes
-	ExpansionSize  int64 // Stored as a varint
-	ExpansionBytes Bytes
+	ExpansionSize  int64 `json:"expansionsize"` // Stored as a varint
+	ExpansionBytes Bytes `json:"expansiondata"`
 
 	// Number of txs in the block
 	TransactionCount uint32 `json:"txcount"`
