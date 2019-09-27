@@ -1,6 +1,7 @@
 package factom
 
 import (
+	"crypto/ed25519"
 	"encoding"
 	"fmt"
 
@@ -21,7 +22,7 @@ type RCD interface {
 	// Address returns the sha256(rcd) that is the factoid address
 	Address() (*Bytes32, error)
 
-	// TODO: add function to validate a signature block for a given rcd
+	Validate(msg Bytes, signature Bytes) bool
 
 	// For Marshalling
 	encoding.BinaryMarshaler
@@ -32,20 +33,36 @@ type RCD interface {
 // type. It will return the RCD, the number of bytes read, and an error.
 // The details underlying format of the data can be seen on the UnmarshalBinary
 // functions of the RCD types.
-func DecodeRCD(data []byte) (RCD, int, error) {
+func DecodeRCD(data []byte) (reedemCondition RCD, read int, err error) {
+	// TODO: The varintf decode function can panic
+	//		until that is fixed, the only way to proctect the call is
+	// 		to panic recover
+	defer func() {
+		// TODO: Remove this recover if the varintf ever gets a protected call
+		//		that will prevent panics and instead hand out an error.
+		if r := recover(); r != nil {
+			err = fmt.Errorf("failed to decode")
+		}
+	}()
+
+	// Min 1 bytes for a varint of 1 byte
+	if len(data) < 1 {
+		return nil, 0, fmt.Errorf("insufficient length")
+	}
+
 	version, _ := varintf.Decode(data)
 	switch version {
 	case 1:
 		rcd := new(RCD1)
 		if len(data) < RCDType1Len {
-			return nil, 0, fmt.Errorf("not enough bytes to decode rcd")
+			return nil, 0, fmt.Errorf("insufficient length")
 		}
 		if err := rcd.UnmarshalBinary(data[:RCDType1Len]); err != nil {
 			return nil, 0, err
 		}
 		return rcd, RCDType1Len, nil
 	default:
-		return nil, 0, fmt.Errorf("rcd version %d unspecified", version)
+		return nil, 0, fmt.Errorf("rcd version %d unsupported", version)
 	}
 }
 
@@ -70,6 +87,12 @@ func (r *RCD1) Address() (*Bytes32, error) {
 	}
 	addr := Bytes32(sha256d(data))
 	return &addr, nil
+}
+
+func (r *RCD1) Validate(msg Bytes, signature Bytes) bool {
+	// TODO: This library might not be doing cannonical ed25519 signature checking
+	//		to ensure all signatures are on the correct side of the curve
+	return ed25519.Verify(r.PublicKey[:], msg, signature)
 }
 
 // IsPopulated returns true if r has already been successfully populated by a
