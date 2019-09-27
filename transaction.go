@@ -70,6 +70,70 @@ func (s FactoidTransactionSignature) IsPopulated() bool {
 		s.ReedeemCondition != nil
 }
 
+// Valid returns if the inputs of the factoid transaction are properly signed by the redeem conditions.
+// It will also validate the total inputs is greater than the total outputs.
+func (s *FactoidTransaction) Valid() bool {
+	if !s.IsPopulated() {
+		return false
+	}
+
+	// Validate amounts
+	if s.TotalFCTInputs() < s.TotalFCTOutputs()+s.TotalECOutput() {
+		return false
+	}
+
+	// Validate signatures
+	if len(s.FCTInputs) != len(s.Signatures) {
+		return false
+	}
+
+	msg, err := s.MarshalLedgerBinary()
+	if err != nil {
+		return false
+	}
+
+	for i := range s.FCTInputs {
+		expAddr, err := s.Signatures[i].ReedeemCondition.Address()
+		if err != nil {
+			return false
+		}
+		// RCD should match the input
+		if *expAddr != *s.FCTInputs[i].Address {
+			return false
+		}
+
+		if !s.Signatures[i].Validate(msg) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (s *FactoidTransaction) TotalFCTInputs() (total uint64) {
+	return FactoidTransactionIOs(s.FCTInputs).TotalAmount()
+}
+
+func (s *FactoidTransaction) TotalFCTOutputs() (total uint64) {
+	return FactoidTransactionIOs(s.FCTOutputs).TotalAmount()
+}
+
+// TotalECOutput is delimated in factoishis
+func (s *FactoidTransaction) TotalECOutput() (total uint64) {
+	return FactoidTransactionIOs(s.ECOutputs).TotalAmount()
+}
+
+func (s FactoidTransactionIOs) TotalAmount() (total uint64) {
+	for _, io := range s {
+		total += io.Amount
+	}
+	return
+}
+
+func (s FactoidTransactionSignature) Validate(msg Bytes) bool {
+	return s.ReedeemCondition.Validate(msg, s.SignatureBlock)
+}
+
 // Get queries factomd for the entry corresponding to f.TransactionID, which must be not
 // nil. After a successful call all inputs, outputs, and the header will be populated
 func (f *FactoidTransaction) Get(c *Client) error {
@@ -283,15 +347,27 @@ const (
 		1 + // factoid output count
 		1 // EC output count
 
+	TransactionTotalMinLen = TransactionHeadMinLen // Coinbases have no body
+
 )
 
 // Decode will consume as many bytes as necessary to unmarshal the factoid
 // transaction. It will return the number of bytes read and an error.
-func (f *FactoidTransaction) Decode(data []byte) (int, error) {
-	// TODO: Some length checks to prevent too few/too many bytes
+func (f *FactoidTransaction) Decode(data []byte) (i int, err error) {
+	// Because the length of an FactoidTransaction is hard to define up front, we will catch
+	// any sort of out of bound errors in a recover
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("failed to unmarshal")
+		}
+	}()
+
+	if len(data) < TransactionTotalMinLen {
+		return 0, fmt.Errorf("insufficient length")
+	}
 
 	// Decode header
-	i, err := f.DecodeHeader(data)
+	i, err = f.DecodeHeader(data)
 	if err != nil {
 		return 0, err
 	}

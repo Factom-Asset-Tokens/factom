@@ -23,6 +23,7 @@
 package factom_test
 
 import (
+	"math/rand"
 	"testing"
 	"time"
 
@@ -94,6 +95,7 @@ var txUnmarshalBinaryTests = []struct {
 	Name     string
 	Data     []byte
 	Error    string
+	Valid    bool
 	TxID     *Bytes32
 	FullHash *Bytes32
 }{
@@ -105,6 +107,7 @@ var txUnmarshalBinaryTests = []struct {
 			"637d9e8a7464aa272192e499bb0cdc720288884bfd5546bab8dcb8892527fc7b"),
 		FullHash: NewBytes32FromString(
 			"59b293f8ade00f7f51d42762b864e287ea31d195563e1970356fe8c1d49fce97"),
+		Valid: true,
 	},
 	{
 		Name: "valid (1 ec out)",
@@ -114,6 +117,7 @@ var txUnmarshalBinaryTests = []struct {
 			"ff61ee20adda5cbb4ab2eb583881e94b707746660900c6a55c11e3a1e5a7de69"),
 		FullHash: NewBytes32FromString(
 			"d8aec7bf1361e2dfeaf7806ab8e00c1bb49a931932abe561fabb0833cddef4c3"),
+		Valid: true,
 	},
 	{
 		Name: "valid (4 fct in, 3 fct out)",
@@ -123,6 +127,7 @@ var txUnmarshalBinaryTests = []struct {
 			"fa323daccaa9959b27b5a2f4efa5938a3ba9c99e11ef7af6406035d2e06ce286"),
 		FullHash: NewBytes32FromString(
 			"0bc0affe278911b1c59e3ffbe803842787d3d76c3ea42d68250a5b5de5e2b420"),
+		Valid: true,
 	},
 	{
 		Name: "valid (coinbase)",
@@ -132,8 +137,22 @@ var txUnmarshalBinaryTests = []struct {
 			"406dbd6e0f09352f079d4a41b3d9fa57b91a0df131ad6198d68f829663ddaece"),
 		FullHash: NewBytes32FromString(
 			"406dbd6e0f09352f079d4a41b3d9fa57b91a0df131ad6198d68f829663ddaece"),
+		Valid: true,
 	},
-	// TODO: Add invalid tests
+	// Invalid Sigs
+	{
+		Name: "valid but rcd does not match input",
+		Data: NewBytesFromString(
+			"02a162606d234b01010092d097e400304d80538e27505d44d5ff0ada6a9d420d93a9994da75f0763c12c827b61666892d0969560b11e86b4894661091c16f511a2f1000099b54dcf73bc7bcacba6e3fe2f547c83010fd93026041de6387d2dcef0917c06288e690fa7652c20f044746e787b06b2bdf7f1ec53e7e5695667b071b4e3ae65c09c804e164e971ac4717c7a8d0b61053f831f605e0adbf98d19613b00797962beb899a8d9472e187b17444159e74b2f0e"),
+		Valid: false,
+	},
+	// Invalid Marshals
+	{
+		Name: "invalid (too short)",
+		Data: NewBytesFromString(
+			""),
+		Error: "insufficient length",
+	},
 }
 
 func TestFactoidTransaction_UnmarshalBinary(t *testing.T) {
@@ -148,12 +167,31 @@ func TestFactoidTransaction_UnmarshalBinary(t *testing.T) {
 				require.NotNil(f.FCTInputs)
 				hash, err := f.ComputeFullHash()
 				assert.NoError(err)
-				assert.Equal(*test.TxID, *f.TransactionID)
-				assert.Equal(test.FullHash, hash)
+				if test.TxID != nil {
+					assert.Equal(*test.TxID, *f.TransactionID)
+				}
+				if test.FullHash != nil {
+					assert.Equal(test.FullHash, hash)
+				}
 				assert.Equal(read, len(test.Data))
+				assert.Equal(test.Valid, f.Valid())
 			} else {
 				require.EqualError(err, test.Error)
 			}
 		})
 	}
+
+	// To ensure there is not panics and all errors are caught
+	t.Run("UnmarshalBinary/Transaction", func(t *testing.T) {
+		for i := 0; i < 1000; i++ {
+			d := make([]byte, rand.Intn(500))
+			rand.Read(d)
+
+			f := FactoidTransaction{}
+			err := f.UnmarshalBinary(d)
+			if err == nil {
+				t.Errorf("expected an error")
+			}
+		}
+	})
 }
