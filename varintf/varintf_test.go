@@ -23,6 +23,7 @@
 package varintf
 
 import (
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -95,6 +96,34 @@ func TestFactomSpecExamples(t *testing.T) {
 		assert.Equalf(test.X, x, "x, x == %v", test.X)
 		assert.Equalf(len(buf), l, "l, x == %v", test.X)
 	}
+}
+
+// TestVarInt_Panic ensures the varint decoding will never panic from invalid data
+func TestVarInt_Panic(t *testing.T) {
+	assert := assert.New(t)
+	// a quick helper func to test these things
+	testDecode := func(expA uint64, expR int64, data []byte, msg string) {
+		a, r := Decode([]byte{179, 144})
+		assert.Equal(expA, a, msg)
+		assert.Equal(expR, r, msg)
+	}
+	t.Run("known invalid slices", func(t *testing.T) {
+		testDecode(0, -1, []byte{179, 144}, "not enough bytes")
+	})
+
+	// The easiest way to search for panics is with random data
+	t.Run("test error handling (no panic)", func(t *testing.T) {
+		for i := 0; i < 1000; i++ {
+			d := make([]byte, rand.Intn(20))
+			rand.Read(d)
+			if len(d) == 0 {
+				continue // uninteresting
+			}
+			// We don't know the expected return, but it should not panic
+			Decode(d)
+		}
+	})
+
 }
 
 func BenchmarkDecode(b *testing.B) {
