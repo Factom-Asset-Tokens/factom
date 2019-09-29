@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEncodeDecode(t *testing.T) {
@@ -33,8 +34,8 @@ func TestEncodeDecode(t *testing.T) {
 	for x := uint64(1); x > 0; x <<= 1 {
 		buf := Encode(x)
 		d, l := Decode(buf)
-		assert.Equalf(x, d, "%x", int(x))
-		assert.Equalf(len(buf), l, "%x", int(x))
+		assert.Equalf(x, d, "x, x == %v", x)
+		assert.Equalf(len(buf), l, "l, x == %v", x)
 	}
 }
 
@@ -86,12 +87,13 @@ var testFactomSpecExamples = []struct {
 
 func TestFactomSpecExamples(t *testing.T) {
 	assert := assert.New(t)
+	require := require.New(t)
 	for _, test := range testFactomSpecExamples {
 		buf := Encode(test.X)
+		require.Equalf(test.Buf, buf, "buf, x == %v", test.X)
 		x, l := Decode(test.Buf)
-		assert.Equalf(test.Buf, buf, "%x", int(test.X))
-		assert.Equalf(test.X, x, "%x", int(test.X))
-		assert.Equalf(len(buf), l, "%x", int(test.X))
+		assert.Equalf(test.X, x, "x, x == %v", test.X)
+		assert.Equalf(len(buf), l, "l, x == %v", test.X)
 	}
 }
 

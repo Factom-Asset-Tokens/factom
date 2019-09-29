@@ -37,35 +37,80 @@ import (
 
 const continuationBitMask = 0x80
 
-// Encode x into varInt_F bytes.
-func Encode(x uint64) []byte {
+// BufLen returns the number of bytes required to encode x.
+//
+// This must be used when passing buffers to Put.
+//
+//      Put(buf[:BufLen(x)], x)
+func BufLen(x uint64) int {
+	// bitlen is the minimum number of bits required to represent x.
 	bitlen := bits.Len64(x)
+
+	// buflen is the number of bytes required to encode x to varInt_F. Each
+	// byte can store 7 bits of x plus a continuation bit.
 	buflen := bitlen / 7
+
+	// At least one byte is required to represent 0 (bitlen == 0) or to
+	// account for the remainder bits after division by 7.
 	if bitlen == 0 || bitlen%7 > 0 {
 		buflen++
 	}
-	buf := make([]byte, buflen)
+	return buflen
+}
+
+// Put the encoding of x into buf, which must be exactly equal to BufLen(x).
+// For example,
+//
+//      Put(buf[:BufLen(x)], x)
+//
+// If len(buf) is not exactly equal to BufLen(x), garbage data will be written
+// into buf.
+func Put(buf []byte, x uint64) {
 	for i := range buf {
-		buf[i] = continuationBitMask | uint8(x>>uint((buflen-i-1)*7))
+		buf[i] = continuationBitMask | uint8(x>>uint((len(buf)-i-1)*7))
 	}
 	// Unset continuation bit in last byte.
-	buf[buflen-1] &^= continuationBitMask
+	buf[len(buf)-1] &^= continuationBitMask
+}
+
+// Encode x as into a new []byte with length BufLen(x).
+//
+// Use Put to control the allocation of the slice.
+func Encode(x uint64) []byte {
+	buf := make([]byte, BufLen(x))
+	Put(buf, x)
 	return buf
 }
 
-// Decode varInt_F bytes into a uint64 and return the number of bytes used. If
-// buf encodes a number larger than 64 bits, 0 and -1 is returned.
+// Decode buf into uint64 and return the number of bytes used.
+//
+// If buf encodes a number larger than 64 bits, 0 and -1 is returned.
 func Decode(buf []byte) (uint64, int) {
-	buflen := 1
-	for b := buf[0]; b&continuationBitMask > 0; b = buf[buflen-1] {
+	var buflen int
+	var complete bool
+	for _, b := range buf {
 		buflen++
+		if b&continuationBitMask == 0 {
+			complete = true
+			break
+		}
+
+		// We cannot decode more than 10 bytes.
+		if buflen >= 10 {
+			return 0, -1
+		}
 	}
-	if buflen > 10 || (buflen == 10 && buf[0] > 0x81) {
+
+	// If the 10th byte is used, the most significant byte may not be
+	// greater than 1, since 63 bits have already been accounted for in the
+	// least significant 9 bytes.
+	if !complete || (buflen == 10 && buf[0] > 0x01|continuationBitMask) {
 		return 0, -1
 	}
+
 	var x uint64
-	for i := 0; i < buflen; i++ {
-		x |= uint64(buf[i]&^continuationBitMask) << uint((buflen-i-1)*7)
+	for i, b := range buf[:buflen] {
+		x |= uint64(b&^continuationBitMask) << uint((buflen-i-1)*7)
 	}
 	return x, buflen
 }
