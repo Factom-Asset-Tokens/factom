@@ -23,6 +23,7 @@
 package factom
 
 import (
+	"encoding"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -44,12 +45,12 @@ type unmarshalJSONTest struct {
 	Data string
 	Err  string
 	Un   interface {
-		json.Unmarshaler
-		json.Marshaler
+		encoding.TextUnmarshaler
+		encoding.TextMarshaler
 	}
 	Exp interface {
-		json.Unmarshaler
-		json.Marshaler
+		encoding.TextUnmarshaler
+		encoding.TextMarshaler
 	}
 }
 
@@ -84,15 +85,33 @@ var unmarshalJSONtests = []unmarshalJSONTest{{
 }, {
 	Name: "invalid type",
 	Data: `{}`,
-	Err:  "json: cannot unmarshal object into Go value of type string",
+	Err:  "json: cannot unmarshal object into Go value of type *factom.Bytes",
+	Un:   new(Bytes),
+}, {
+	Name: "invalid type",
+	Data: `{}`,
+	Err:  "json: cannot unmarshal object into Go value of type *factom.Bytes32",
+	Un:   new(Bytes32),
 }, {
 	Name: "invalid type",
 	Data: `5.5`,
-	Err:  "json: cannot unmarshal number into Go value of type string",
+	Err:  "json: cannot unmarshal number into Go value of type *factom.Bytes",
+	Un:   new(Bytes),
+}, {
+	Name: "invalid type",
+	Data: `5.5`,
+	Err:  "json: cannot unmarshal number into Go value of type *factom.Bytes32",
+	Un:   new(Bytes32),
 }, {
 	Name: "invalid type",
 	Data: `["asdf"]`,
-	Err:  "json: cannot unmarshal array into Go value of type string",
+	Err:  "json: cannot unmarshal array into Go value of type *factom.Bytes",
+	Un:   new(Bytes),
+}, {
+	Name: "invalid type",
+	Data: `["asdf"]`,
+	Err:  "json: cannot unmarshal array into Go value of type *factom.Bytes32",
+	Un:   new(Bytes32),
 }, {
 	Name: "too long",
 	Data: `"DA56930e8693fb7c0a13aac4d01cf26184d760f2fd92d2f0a62aa630b1a25fa71234"`,
@@ -107,7 +126,7 @@ var unmarshalJSONtests = []unmarshalJSONTest{{
 
 func testUnmarshalJSON(t *testing.T, test unmarshalJSONTest) {
 	assert := assert.New(t)
-	err := test.Un.UnmarshalJSON([]byte(test.Data))
+	err := json.Unmarshal([]byte(test.Data), test.Un)
 	if len(test.Err) > 0 {
 		assert.EqualError(err, test.Err)
 		return
@@ -124,7 +143,7 @@ func TestBytes(t *testing.T) {
 			})
 			if test.Exp != nil {
 				t.Run("MarshalJSON/"+test.Name, func(t *testing.T) {
-					data, err := test.Un.MarshalJSON()
+					data, err := json.Marshal(test.Un)
 					assert := assert.New(t)
 					assert.NoError(err)
 					assert.Equal(strings.ToLower(test.Data),

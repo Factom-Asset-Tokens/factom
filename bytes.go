@@ -24,17 +24,16 @@ package factom
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 )
 
-// Bytes32 implements json.Marshaler and json.Unmarshaler to encode and decode
-// strings with exactly 32 bytes of hex encoded data, such as Chain IDs and
-// KeyMRs.
+// Bytes32 implements encoding.TextMarshaler and encoding.TextUnmarshaler to
+// encode and decode hex strings with exactly 32 bytes of data, such as
+// ChainIDs and KeyMRs.
 type Bytes32 [32]byte
 
-// Bytes implements json.Marshaler and json.Unmarshaler to encode and decode
-// strings with hex encoded data, such as an Entry's External IDs or content.
+// Bytes implements encoding.TextMarshaler and encoding.TextUnmarshaler to
+// encode and decode hex strings, such as an Entry's ExtIDs or Content.
 type Bytes []byte
 
 // NewBytes32 allocates a new Bytes32 object with the first 32 bytes of data
@@ -45,29 +44,15 @@ func NewBytes32(s32 []byte) *Bytes32 {
 	return b32
 }
 
-// NewBytes32FromString allocates a new Bytes32 object with the hex encoded
-// string data contained in s32.
+// NewBytes32FromString allocates a new Bytes32 object with the hex string data
+// contained in s32.
 func NewBytes32FromString(s32 string) *Bytes32 {
 	b32 := new(Bytes32)
 	b32.Set(s32)
 	return b32
 }
 
-// Set decodes a string with exactly 32 bytes of hex encoded data.
-func (b *Bytes32) Set(hexStr string) error {
-	if len(hexStr) == 0 {
-		return nil
-	}
-	if len(hexStr) != hex.EncodedLen(len(b)) {
-		return fmt.Errorf("invalid length")
-	}
-	if _, err := hex.Decode(b[:], []byte(hexStr)); err != nil {
-		return err
-	}
-	return nil
-}
-
-// NewBytesFromString makes a new Bytes object with the hex encoded string data
+// NewBytesFromString makes a new Bytes object with the hex string data
 // contained in s.
 func NewBytesFromString(s string) Bytes {
 	var b Bytes
@@ -75,42 +60,49 @@ func NewBytesFromString(s string) Bytes {
 	return b
 }
 
-// Set decodes a string with hex encoded data.
+// Set decodes a hex string with exactly 32 bytes of data into b.
+func (b *Bytes32) Set(hexStr string) error {
+	return b.UnmarshalText([]byte(hexStr))
+}
+
+// Set decodes a hex string into b.
 func (b *Bytes) Set(hexStr string) error {
-	*b = make(Bytes, hex.DecodedLen(len(hexStr)))
-	if _, err := hex.Decode(*b, []byte(hexStr)); err != nil {
+	return b.UnmarshalText([]byte(hexStr))
+}
+
+// UnmarshalText decodes a hex string with exactly 32 bytes of data into b.
+func (b *Bytes32) UnmarshalText(text []byte) error {
+	if len(text) == 0 {
+		return nil
+	}
+	if len(text) != hex.EncodedLen(len(b)) {
+		return fmt.Errorf("invalid length")
+	}
+	if _, err := hex.Decode(b[:], text); err != nil {
 		return err
 	}
 	return nil
 }
 
-// UnmarshalJSON decodes a JSON string with exactly 32 bytes of hex encoded
-// data.
-func (b *Bytes32) UnmarshalJSON(data []byte) error {
-	var hexStr string
-	if err := json.Unmarshal(data, &hexStr); err != nil {
+// UnmarshalText decodes a hex string into b.
+func (b *Bytes) UnmarshalText(text []byte) error {
+	*b = make(Bytes, hex.DecodedLen(len(text)))
+	if _, err := hex.Decode(*b, text); err != nil {
 		return err
 	}
-	return b.Set(hexStr)
-}
-
-// UnmarshalJSON decodes a JSON string with hex encoded data.
-func (b *Bytes) UnmarshalJSON(data []byte) error {
-	var hexStr string
-	if err := json.Unmarshal(data, &hexStr); err != nil {
-		return err
-	}
-	return b.Set(hexStr)
+	return nil
 }
 
 // String encodes b as a hex string.
 func (b Bytes32) String() string {
-	return hex.EncodeToString(b[:])
+	text, _ := b.MarshalText()
+	return string(text)
 }
 
 // String encodes b as a hex string.
 func (b Bytes) String() string {
-	return hex.EncodeToString(b[:])
+	text, _ := b.MarshalText()
+	return string(text)
 }
 
 // Type returns "Bytes32". Satisfies pflag.Value interface.
@@ -123,14 +115,18 @@ func (b Bytes) Type() string {
 	return "Bytes"
 }
 
-// MarshalJSON encodes b as a hex JSON string.
-func (b Bytes32) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf("%#v", b.String())), nil
+// MarshalText encodes b as a hex string. It never returns an error.
+func (b Bytes32) MarshalText() ([]byte, error) {
+	text := make([]byte, hex.EncodedLen(len(b)))
+	hex.Encode(text, b[:])
+	return text, nil
 }
 
-// MarshalJSON encodes b as a hex JSON string.
-func (b Bytes) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf("%#v", b.String())), nil
+// MarshalText encodes b as a hex string. It never returns an error.
+func (b Bytes) MarshalText() ([]byte, error) {
+	text := make([]byte, hex.EncodedLen(len(b)))
+	hex.Encode(text, b[:])
+	return text, nil
 }
 
 // IsZero returns true if b is equal to its zero value.
