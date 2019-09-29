@@ -33,12 +33,22 @@ var (
 	localnetID = [...]byte{0xFA, 0x92, 0xE5, 0xA4}
 )
 
-func MainnetID() NetworkID  { return mainnetID }
-func TestnetID() NetworkID  { return testnetID }
+// MainnetID returns the Mainnet NetworkID, 0xFA92E5A2.
+func MainnetID() NetworkID { return mainnetID }
+
+// TestnetID returns the Testnet NetworkID, 0x883e093b.
+func TestnetID() NetworkID { return testnetID }
+
+// LocalnetID returns the Localnet NetworkID, 0xFA92E5A4.
 func LocalnetID() NetworkID { return localnetID }
 
+// NetworkID represents the 4 byte magic number that helps identify distinct
+// Factom networks.
+//
+// NetworkID conforms to the flag.Value interface.
 type NetworkID [4]byte
 
+// String returns "mainnet", "testnet", "localnet", or "custom: 0x...".
 func (n NetworkID) String() string {
 	switch n {
 	case mainnetID:
@@ -51,6 +61,10 @@ func (n NetworkID) String() string {
 		return "custom: 0x" + Bytes(n[:]).String()
 	}
 }
+
+// Set sets n to the NetworkID corresponding to netIDStr, which can be "main",
+// "mainnet", "test", "testnet", "local", "localnet" or a 4 byte hex encoded
+// string for a custom NetworkID.
 func (n *NetworkID) Set(netIDStr string) error {
 	switch strings.ToLower(netIDStr) {
 	case "main", "mainnet":
@@ -76,18 +90,23 @@ func (n *NetworkID) Set(netIDStr string) error {
 	return nil
 }
 
+// IsMainnet returns true if n is the Mainnet NetworkID.
 func (n NetworkID) IsMainnet() bool {
 	return n == mainnetID
 }
 
+// IsTestnet returns true if n is the Testnet NetworkID.
 func (n NetworkID) IsTestnet() bool {
 	return n == testnetID
 }
 
+// IsLocalnet returns true if n is the Localnet NetworkID.
 func (n NetworkID) IsLocalnet() bool {
 	return n == localnetID
 }
 
+// IsCustom returns true if n is not the Mainnet, Testnet, or Localnet
+// NetworkID.
 func (n NetworkID) IsCustom() bool {
-	return !n.IsMainnet() && !n.IsTestnet()
+	return !n.IsMainnet() && !n.IsTestnet() && !n.IsLocalnet()
 }
