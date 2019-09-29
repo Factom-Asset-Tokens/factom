@@ -23,8 +23,6 @@
 package factom
 
 import (
-	"database/sql"
-	"database/sql/driver"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -135,27 +133,7 @@ func (b Bytes) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf("%#v", b.String())), nil
 }
 
-// Scan expects v to be a byte slice with exactly 32 bytes of data.
-func (b *Bytes32) Scan(v interface{}) error {
-	data, ok := v.([]byte)
-	if !ok {
-		return fmt.Errorf("invalid type")
-	}
-	if len(data) != 32 {
-		return fmt.Errorf("invalid length")
-	}
-	copy(b[:], data)
-	return nil
-}
-
-// Value expects b to be a byte slice with exactly 32 bytes of data.
-func (b Bytes32) Value() (driver.Value, error) {
-	return b[:], nil
-}
-
-var _ sql.Scanner = &Bytes32{}
-var _ driver.Valuer = Bytes32{}
-
+// IsZero returns true if b is equal to its zero value.
 func (b Bytes32) IsZero() bool {
 	return b == Bytes32{}
 }

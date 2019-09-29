@@ -25,8 +25,6 @@ package factom
 import (
 	"crypto/rand"
 	"crypto/sha256"
-	"database/sql"
-	"database/sql/driver"
 	"fmt"
 
 	"crypto/ed25519"
@@ -760,18 +758,3 @@ func (adr FsAddress) PrivateKey() ed25519.PrivateKey {
 func (adr EsAddress) PrivateKey() ed25519.PrivateKey {
 	return ed25519.NewKeyFromSeed(adr[:])
 }
-
-// Scan implements sql.Scanner for adr using Bytes32.Scan. The FAAddress type
-// is not encoded and is assumed.
-func (adr *FAAddress) Scan(v interface{}) error {
-	return (*Bytes32)(adr).Scan(v)
-}
-
-// Value implements driver.Valuer for adr using Bytes32.Value. The FAAddress
-// type is not encoded.
-func (adr FAAddress) Value() (driver.Value, error) {
-	return (Bytes32)(adr).Value()
-}
-
-var _ sql.Scanner = &FAAddress{}
-var _ driver.Valuer = &FAAddress{}

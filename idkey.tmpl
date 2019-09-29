@@ -236,15 +236,4 @@ func (key SK{{.ID}}Key) PrivateKey() ed25519.PrivateKey {
 	return ed25519.NewKeyFromSeed(key[:])
 }
 
-// Scan implements sql.Scanner for key using Bytes32.Scan. The ID{{.ID}}Key type is
-// not encoded and is assumed.
-func (key *ID{{.ID}}Key) Scan(v interface{}) error {
-	return (*Bytes32)(key).Scan(v)
-}
-
-// Value implements driver.Valuer for key using Bytes32.Value. The ID{{.ID}}Key type
-// is not encoded.
-func (key ID{{.ID}}Key) Value() (driver.Value, error) {
-	return (Bytes32)(key).Value()
-}
 {{end}}

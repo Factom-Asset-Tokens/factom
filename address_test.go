@@ -353,30 +353,4 @@ func TestAddress(t *testing.T) {
 		err := es.Remove(c)
 		assert.NoError(t, err)
 	})
-
-	t.Run("Scan", func(t *testing.T) {
-		var adr FAAddress
-		err := adr.Scan(5)
-		assert := assert.New(t)
-		assert.EqualError(err, "invalid type")
-
-		in := make([]byte, 32)
-		in[0] = 0xff
-		err = adr.Scan(in[:10])
-		assert.EqualError(err, "invalid length")
-
-		err = adr.Scan(in)
-		assert.NoError(err)
-		assert.EqualValues(in, adr[:])
-	})
-
-	t.Run("Value", func(t *testing.T) {
-		var adr FAAddress
-		adr[0] = 0xff
-		val, err := adr.Value()
-		assert := assert.New(t)
-		assert.NoError(err)
-		assert.Equal(adr[:], val)
-	})
-
 }

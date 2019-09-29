@@ -25,10 +25,8 @@
 package factom
 
 import (
-	"crypto/sha256"
-	"database/sql/driver"
-
 	"crypto/ed25519"
+	"crypto/sha256"
 )
 
 // Defines IDKeys ID1Key - ID4Key and corresponding SKKeys SK1Key - SK4Key.
@@ -248,18 +246,6 @@ func (key SK1Key) PrivateKey() ed25519.PrivateKey {
 	return ed25519.NewKeyFromSeed(key[:])
 }
 
-// Scan implements sql.Scanner for key using Bytes32.Scan. The ID1Key type is
-// not encoded and is assumed.
-func (key *ID1Key) Scan(v interface{}) error {
-	return (*Bytes32)(key).Scan(v)
-}
-
-// Value implements driver.Valuer for key using Bytes32.Value. The ID1Key type
-// is not encoded.
-func (key ID1Key) Value() (driver.Value, error) {
-	return (Bytes32)(key).Value()
-}
-
 // ID2Key is the id2 public key for an identity.
 type ID2Key [sha256.Size]byte
 
@@ -437,18 +423,6 @@ func (key SK2Key) PublicKey() ed25519.PublicKey {
 // PrivateKey returns the ed25519.PrivateKey for key.
 func (key SK2Key) PrivateKey() ed25519.PrivateKey {
 	return ed25519.NewKeyFromSeed(key[:])
-}
-
-// Scan implements sql.Scanner for key using Bytes32.Scan. The ID2Key type is
-// not encoded and is assumed.
-func (key *ID2Key) Scan(v interface{}) error {
-	return (*Bytes32)(key).Scan(v)
-}
-
-// Value implements driver.Valuer for key using Bytes32.Value. The ID2Key type
-// is not encoded.
-func (key ID2Key) Value() (driver.Value, error) {
-	return (Bytes32)(key).Value()
 }
 
 // ID3Key is the id3 public key for an identity.
@@ -630,18 +604,6 @@ func (key SK3Key) PrivateKey() ed25519.PrivateKey {
 	return ed25519.NewKeyFromSeed(key[:])
 }
 
-// Scan implements sql.Scanner for key using Bytes32.Scan. The ID3Key type is
-// not encoded and is assumed.
-func (key *ID3Key) Scan(v interface{}) error {
-	return (*Bytes32)(key).Scan(v)
-}
-
-// Value implements driver.Valuer for key using Bytes32.Value. The ID3Key type
-// is not encoded.
-func (key ID3Key) Value() (driver.Value, error) {
-	return (Bytes32)(key).Value()
-}
-
 // ID4Key is the id4 public key for an identity.
 type ID4Key [sha256.Size]byte
 
@@ -819,16 +781,4 @@ func (key SK4Key) PublicKey() ed25519.PublicKey {
 // PrivateKey returns the ed25519.PrivateKey for key.
 func (key SK4Key) PrivateKey() ed25519.PrivateKey {
 	return ed25519.NewKeyFromSeed(key[:])
-}
-
-// Scan implements sql.Scanner for key using Bytes32.Scan. The ID4Key type is
-// not encoded and is assumed.
-func (key *ID4Key) Scan(v interface{}) error {
-	return (*Bytes32)(key).Scan(v)
-}
-
-// Value implements driver.Valuer for key using Bytes32.Value. The ID4Key type
-// is not encoded.
-func (key ID4Key) Value() (driver.Value, error) {
-	return (Bytes32)(key).Value()
 }

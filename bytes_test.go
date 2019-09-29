@@ -143,31 +143,6 @@ func TestBytes(t *testing.T) {
 		})
 	}
 
-	t.Run("Scan", func(t *testing.T) {
-		var b Bytes32
-		err := b.Scan(5)
-		assert := assert.New(t)
-		assert.EqualError(err, "invalid type")
-
-		in := make([]byte, 32)
-		in[0] = 0xff
-		err = b.Scan(in[:10])
-		assert.EqualError(err, "invalid length")
-
-		err = b.Scan(in)
-		assert.NoError(err)
-		assert.EqualValues(in, b[:])
-	})
-
-	t.Run("Value", func(t *testing.T) {
-		var b Bytes32
-		b[0] = 0xff
-		val, err := b.Value()
-		assert := assert.New(t)
-		assert.NoError(err)
-		assert.Equal(b[:], val)
-	})
-
 	t.Run("IsZero()", func(t *testing.T) {
 		assert.True(t, Bytes32{}.IsZero())
 		assert.False(t, Bytes32{0: 1}.IsZero())
