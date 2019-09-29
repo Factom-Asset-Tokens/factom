@@ -92,7 +92,7 @@ func TestDataStructures(t *testing.T) {
 
 		// An EBlock without a KeyMR or ChainID should cause an error.
 		blank := EBlock{}
-		assert.EqualError(blank.Get(c), "no KeyMR or ChainID specified")
+		assert.EqualError(blank.Get(c), "no ChainID specified")
 
 		// We'll use the DBlock from the last test, so it must be
 		// populated to proceed.
@@ -180,14 +180,6 @@ func TestDataStructures(t *testing.T) {
 		data, err := eb2.MarshalBinary()
 		require.NoError(err)
 		assert.Equal(result.Data, Bytes(data))
-
-		bodyMR, err := eb2.ComputeBodyMR()
-		require.NoError(err)
-		assert.Equal(*eb2.BodyMR, bodyMR)
-
-		keyMR, err := eb2.ComputeKeyMR()
-		require.NoError(err)
-		assert.Equal(*eb2.KeyMR, keyMR)
 	})
 	t.Run("Entry", func(t *testing.T) {
 		assert := assert.New(t)
@@ -221,14 +213,5 @@ func TestDataStructures(t *testing.T) {
 		assert.Len(e.ExtIDs, 6)
 		assert.NotEmpty(e.Content)
 		assert.Equal(time.Unix(1542223080, 0), e.Timestamp)
-		hash, err := e.ComputeHash()
-		assert.NoError(err)
-		assert.Equal(*e.Hash, hash)
-
-		e = eb.Entries[1]
-		require.NoError(e.Get(c))
-		hash, err = e.ComputeHash()
-		assert.NoError(err)
-		assert.Equal(*e.Hash, hash)
 	})
 }

@@ -50,10 +50,12 @@ var marshalBinaryTests = []struct {
 func TestEntryMarshalBinary(t *testing.T) {
 	for _, test := range marshalBinaryTests {
 		t.Run(test.Name, func(t *testing.T) {
-			e := test.Entry
-			hash, err := e.ComputeHash()
 			assert := assert.New(t)
-			assert.NoError(err)
+			require := require.New(t)
+			e := test.Entry
+			data, err := e.MarshalBinary()
+			require.NoError(err)
+			hash := ComputeEntryHash(data)
 			assert.Equal(*e.Hash, hash)
 		})
 	}
@@ -110,19 +112,14 @@ var unmarshalBinaryTests = []struct {
 func TestEntry(t *testing.T) {
 	for _, test := range unmarshalBinaryTests {
 		t.Run("UnmarshalBinary/"+test.Name, func(t *testing.T) {
-			assert := assert.New(t)
 			require := require.New(t)
 			e := Entry{}
 			err := e.UnmarshalBinary(test.Data)
 			if len(test.Error) == 0 {
 				require.NoError(err)
 				require.NotNil(e.ChainID)
-				hash, err := e.ComputeHash()
-				assert.NoError(err)
-				assert.Equal(*test.Hash, hash)
-			} else {
-				require.EqualError(err, test.Error)
 			}
+			require.EqualError(err, test.Error)
 		})
 	}
 
@@ -150,17 +147,17 @@ func TestEntry(t *testing.T) {
 		e := Entry{Content: Bytes(randData[:]),
 			ExtIDs:  []Bytes{Bytes(ec[:])},
 			ChainID: &chainID}
-		tx, err := e.ComposeCreate(c, es)
+		tx, err := e.ComposeCreate(c, es, false)
 		assert.NoError(err)
 		assert.NotNil(tx)
 		fmt.Println("Tx: ", tx)
 		fmt.Println("Entry Hash: ", e.Hash)
 		fmt.Println("Chain ID: ", e.ChainID)
 
-		e.ChainID = nil
 		e.Content = Bytes(randData[:])
 		e.ExtIDs = []Bytes{Bytes(randData[:])}
-		tx, err = e.ComposeCreate(c, es)
+		e.SetNewChainID()
+		tx, err = e.ComposeCreate(c, es, true)
 		assert.NoError(err)
 		assert.NotNil(tx)
 		fmt.Println("Tx: ", tx)
@@ -185,7 +182,7 @@ func TestEntry(t *testing.T) {
 		e := Entry{Content: Bytes(randData[:]),
 			ExtIDs:  []Bytes{Bytes(ec[:])},
 			ChainID: &chainID}
-		tx, err := e.Create(c, ec)
+		tx, err := e.Create(c, ec, false)
 		assert.NoError(err)
 		assert.NotNil(tx)
 		fmt.Println("Tx: ", tx)
@@ -195,7 +192,7 @@ func TestEntry(t *testing.T) {
 		e.ChainID = nil
 		e.Content = Bytes(randData[:])
 		e.ExtIDs = []Bytes{Bytes(randData[:])}
-		tx, err = e.Create(c, ec)
+		tx, err = e.Create(c, ec, true)
 		assert.NoError(err)
 		assert.NotNil(tx)
 		fmt.Println("Tx: ", tx)
@@ -207,14 +204,14 @@ func TestEntry(t *testing.T) {
 		e := Entry{Content: make(Bytes, 11000),
 			ExtIDs:  []Bytes{Bytes(ec[:])},
 			ChainID: &chainID}
-		_, _, _, err := e.Compose(EsAddress(ec))
+		_, _, _, err := e.Compose(EsAddress(ec), false)
 		assert.EqualError(err, "Entry cannot be larger than 10KB")
 	})
 	t.Run("EntryCost", func(t *testing.T) {
 		assert := assert.New(t)
-		_, err := EntryCost(11000)
+		_, err := EntryCost(11000, false)
 		assert.EqualError(err, "Entry cannot be larger than 10KB")
-		cost, _ := EntryCost(0)
+		cost, _ := EntryCost(0, false)
 		assert.Equal(int8(1), cost)
 	})
 }

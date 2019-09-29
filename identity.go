@@ -111,6 +111,8 @@ func (i *Identity) Get(c *Client) error {
 	return nil
 }
 
+// UnmarshalBinary calls i.Entry.UnmarshalBinary and then performs additional
+// validation checks on the ChainID and NameID formats.
 func (i *Identity) UnmarshalBinary(data []byte) error {
 	if err := i.Entry.UnmarshalBinary(data); err != nil {
 		return err

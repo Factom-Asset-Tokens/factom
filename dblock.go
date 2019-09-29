@@ -24,14 +24,11 @@ package factom
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"math"
 	"sort"
 	"time"
-
-	merkle "github.com/AdamSLevy/go-merkle"
 )
 
 // ABlockChainID returns the ChainID of the Admin Block Chain, 0x00..0a.
@@ -123,29 +120,35 @@ func (db *DBlock) Get(c *Client) (err error) {
 	return db.UnmarshalBinary(res.Data)
 }
 
-// Exact lengths and limits of DBlock encoding.
-const (
-	DBlockHeaderLen = 1 + // [Version byte (0x00)]
-		4 + // NetworkID
-		32 + // BodyMR
-		32 + // PrevKeyMR
-		32 + // PrevFullHash
-		4 + // Timestamp
-		4 + // DB Height
-		4 // EBlock Count
+// DBlockHeaderLen is the exact length of a DBlock header.
+const DBlockHeaderLen = 1 + // [Version byte (0x00)]
+	4 + // NetworkID
+	32 + // BodyMR
+	32 + // PrevKeyMR
+	32 + // PrevFullHash
+	4 + // Timestamp
+	4 + // DB Height
+	4 // EBlock Count
 
-		// DBlockEBlockLen is the exact length of an EBlock within a DBlock.
-	DBlockEBlockLen = 32 + // ChainID
-		32 // KeyMR
+// DBlockEBlockLen is the exact length of an EBlock within a DBlock.
+const DBlockEBlockLen = 32 + // ChainID
+	32 // KeyMR
 
-	DBlockMinBodyLen = DBlockEBlockLen + // Admin Block
-		DBlockEBlockLen + // EC Block
-		DBlockEBlockLen // FCT Block
-	DBlockMinTotalLen = DBlockHeaderLen + DBlockMinBodyLen
+// DBlockMinBodyLen is the minimum length of the body of a DBlock, which must
+// include at least an Admin Block, EC Block, and FCT Block.
+const DBlockMinBodyLen = DBlockEBlockLen + // Admin Block
+	DBlockEBlockLen + // EC Block
+	DBlockEBlockLen // FCT Block
 
-	DBlockMaxBodyLen  = math.MaxUint32 * DBlockEBlockLen
-	DBlockMaxTotalLen = DBlockHeaderLen + DBlockMaxBodyLen
-)
+// DBlockMaxBodyLen is the maximum length of the body of a DBlock, which is
+// determined by the largest EBlock count that can be stored in 4 bytes.
+const DBlockMaxBodyLen = math.MaxUint32 * DBlockEBlockLen
+
+// DBlockMinTotalLen is the minumum total length of a DBlock.
+const DBlockMinTotalLen = DBlockHeaderLen + DBlockMinBodyLen
+
+// DBlockMaxTotalLen is the maximum length of a DBlock.
+const DBlockMaxTotalLen = DBlockHeaderLen + DBlockMaxBodyLen
 
 // UnmarshalBinary unmarshals raw DBlock data, verifies the BodyMR, and
 // populates db.FullHash and db.KeyMR, if nil. If db.KeyMR is populated, it is
@@ -248,7 +251,7 @@ func (db *DBlock) UnmarshalBinary(data []byte) error {
 	}
 
 	// Verify BodyMR.
-	bodyMR, err := ComputeBodyMR(elements)
+	bodyMR, err := ComputeDBlockBodyMR(elements)
 	if err != nil {
 		return err
 	}
@@ -256,24 +259,24 @@ func (db *DBlock) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("invalid BodyMR")
 	}
 
-	// Populate FullHash.
-	db.FullHash = new(Bytes32)
-	*db.FullHash = ComputeFullHash(data)
-
 	// Compute KeyMR
 	headerHash := ComputeDBlockHeaderHash(data)
 	keyMR := ComputeKeyMR(&headerHash, &bodyMR)
 
-	// Verify KeyMR if set.
+	// Verify KeyMR, if set.
 	if db.KeyMR != nil {
 		if *db.KeyMR != keyMR {
 			return fmt.Errorf("invalid KeyMR")
 		}
-		return nil
+	} else {
+		// Populate KeyMR.
+		db.KeyMR = &keyMR
 	}
 
-	// Populate KeyMR.
-	db.KeyMR = &keyMR
+	// Populate FullHash.
+	db.FullHash = new(Bytes32)
+	*db.FullHash = ComputeFullHash(data)
+
 	return nil
 }
 
@@ -339,7 +342,7 @@ func (db DBlock) MarshalBinary() ([]byte, error) {
 }
 
 // MarshalBinaryLen returns the length of the binary encoding of db,
-// DBlockHeaderLen + len(db.EBlocks)*DBlockEBlockLen.
+//      DBlockHeaderLen + len(db.EBlocks)*DBlockEBlockLen
 func (db DBlock) MarshalBinaryLen() int {
 	return DBlockHeaderLen + len(db.EBlocks)*DBlockEBlockLen
 }
@@ -356,35 +359,4 @@ func (db DBlock) EBlock(chainID Bytes32) *EBlock {
 		return &db.EBlocks[ei]
 	}
 	return nil
-}
-
-// ComputeDBlockHeaderHash returns sha256(dblock[:DBlockHeaderLen]).
-func ComputeDBlockHeaderHash(dblock []byte) Bytes32 {
-	return sha256.Sum256(dblock[:DBlockHeaderLen])
-}
-
-// ComputeBodyMR returns the merkle root of the tree created with elements as
-// leaves.
-func ComputeBodyMR(elements [][]byte) (Bytes32, error) {
-	tree := merkle.NewTreeWithOpts(merkle.TreeOptions{DoubleOddNodes: true})
-	if err := tree.Generate(elements, sha256.New()); err != nil {
-		return Bytes32{}, err
-	}
-	root := tree.Root()
-	var bodyMR Bytes32
-	copy(bodyMR[:], root.Hash)
-	return bodyMR, nil
-}
-
-// ComputeFullHash returns sha256(data).
-func ComputeFullHash(data []byte) Bytes32 {
-	return sha256.Sum256(data)
-}
-
-// ComputeKeyMR returns sha256(headerHash|bodyMR).
-func ComputeKeyMR(headerHash, bodyMR *Bytes32) Bytes32 {
-	data := make([]byte, len(headerHash)+len(bodyMR))
-	i := copy(data, headerHash[:])
-	copy(data[i:], bodyMR[:])
-	return sha256.Sum256(data)
 }
