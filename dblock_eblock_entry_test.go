@@ -36,9 +36,9 @@ var courtesyNode = "https://courtesy-node.factom.com"
 func TestDataStructures(t *testing.T) {
 	height := uint32(166587)
 	c := NewClient(nil, nil)
-	//c.Factomd.DebugRequest = true
-	db := &DBlock{}
-	db.Header.Height = height
+	c.Factomd.DebugRequest = true
+	var db DBlock
+	db.Height = height
 	t.Run("DBlock", func(t *testing.T) {
 		assert := assert.New(t)
 		require := require.New(t)
@@ -58,7 +58,7 @@ func TestDataStructures(t *testing.T) {
 
 		// Validate this DBlock.
 		assert.Len(db.EBlocks, 7)
-		assert.Equal(height, db.Header.Height)
+		assert.Equal(height, db.Height)
 		for _, eb := range db.EBlocks {
 			assert.NotNil(eb.ChainID)
 			assert.NotNil(eb.KeyMR)
@@ -66,7 +66,7 @@ func TestDataStructures(t *testing.T) {
 
 		dbk := DBlock{KeyMR: db.KeyMR, FullHash: db.FullHash}
 		require.NoError(dbk.Get(c))
-		assert.Equal(*db, dbk)
+		assert.Equal(db, dbk)
 
 		params := struct {
 			Hash *Bytes32 `json:"hash"`
@@ -81,18 +81,6 @@ func TestDataStructures(t *testing.T) {
 		for i := range result.Data {
 			assert.Equal(result.Data[i], data[i], i)
 		}
-
-		full, err := dbk.ComputeFullHash()
-		require.NoError(err, "ComputeFullHash()")
-		assert.Equal(*db.FullHash, full, "ComputeFullHash()")
-
-		bodyMR, err := dbk.ComputeBodyMR()
-		require.NoError(err, "ComputeBodyMR()")
-		assert.Equal(*db.Header.BodyMR, bodyMR, "ComputeBodyMR()")
-
-		keyMR, err := dbk.ComputeKeyMR()
-		require.NoError(err, "ComputeKeyMR()")
-		assert.Equal(*db.KeyMR, keyMR, "ComputeKeyMR()")
 
 		eb := &db.EBlocks[len(db.EBlocks)-1]
 		assert.Equal(eb, db.EBlock(*eb.ChainID))
