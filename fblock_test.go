@@ -136,3 +136,10 @@ func TestFactoidBlock_UnmarshalBinary(t *testing.T) {
 		}
 	})
 }
+
+func TestFBlock_IsPopulated(t *testing.T) {
+	fblock := FBlock{}
+	if fblock.IsPopulated() {
+		t.Error("Should be unpopulated")
+	}
+}

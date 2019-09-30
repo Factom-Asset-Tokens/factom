@@ -77,7 +77,7 @@ type FBlockHeader struct {
 func (fb FBlock) IsPopulated() bool {
 	return len(fb.Transactions) > 0 && // FBlocks always contain at least a coinbase
 		fb.Header.BodyMR != nil &&
-		fb.Header.PrevKeyMR != nil && // TODO: Why not check the computed keymr?
+		fb.Header.PrevKeyMR != nil &&
 		fb.Header.PrevLedgerKeyMR != nil
 }
 

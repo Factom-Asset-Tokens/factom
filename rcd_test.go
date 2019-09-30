@@ -111,3 +111,10 @@ func TestDecodeRCD(t *testing.T) {
 		}
 	})
 }
+
+func TestRCD1_IsPopulated(t *testing.T) {
+	r := RCD1{}
+	if r.IsPopulated() {
+		t.Errorf("Should not be populated")
+	}
+}

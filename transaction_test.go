@@ -195,3 +195,10 @@ func TestFactoidTransaction_UnmarshalBinary(t *testing.T) {
 		}
 	})
 }
+
+func TestFactoidTransaction_IsPopulated(t *testing.T) {
+	f := FactoidTransaction{}
+	if f.IsPopulated() {
+		t.Errorf("Should not be populated")
+	}
+}
