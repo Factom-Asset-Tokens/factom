@@ -42,7 +42,7 @@ var searchID = NewBytes32FromString(
 // verified.
 func TestPendingEntries(t *testing.T) {
 	var pe PendingEntries
-	c := NewClient(nil, nil)
+	c := NewClient()
 	//c.Factomd.DebugRequest = true
 	assert := assert.New(t)
 	require := require.New(t)

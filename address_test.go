@@ -260,7 +260,7 @@ func TestAddress(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	c := NewClient(nil, nil)
+	c := NewClient()
 	t.Run("Save/Fs", func(t *testing.T) {
 		err := fs.Save(c)
 		assert.NoError(t, err)

@@ -190,7 +190,7 @@ var identityTests = []struct {
 	Identity: Identity{},
 }, {
 	Name:         "bad factomd endpoint",
-	FactomServer: "http://localhost:1000",
+	FactomServer: "http://localhost:1000/v2",
 	Identity:     validIdentity(),
 	Error:        "Post http://localhost:1000/v2: dial tcp [::1]:1000: connect: connection refused",
 }, {
@@ -208,9 +208,9 @@ var identityTests = []struct {
 	Error: `jsonrpc2.Error{Code:-32009, Message:"Missing Chain Head"}`,
 }}
 
-var factomServer = "https://courtesy-node.factom.com"
+var factomServer = "https://courtesy-node.factom.com/v2"
 
-var c = NewClient(nil, nil)
+var c = NewClient()
 
 func TestIdentity(t *testing.T) {
 	for _, test := range identityTests {

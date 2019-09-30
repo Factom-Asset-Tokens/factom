@@ -33,32 +33,32 @@ import (
 // BasicAuth settings to set up BasicAuth and http.Client's transport settings
 // to configure TLS.
 type Client struct {
-	Factomd       *jsonrpc2.Client
+	Factomd       jsonrpc2.Client
 	FactomdServer string
-	Walletd       *jsonrpc2.Client
+	Walletd       jsonrpc2.Client
 	WalletdServer string
 }
 
 // Defaults for the factomd and factom-walletd endpoints.
 const (
-	FactomdDefault = "http://localhost:8088"
-	WalletdDefault = "http://localhost:8089"
+	FactomdDefault = "http://localhost:8088/v2"
+	WalletdDefault = "http://localhost:8089/v2"
 )
 
 // NewClient returns a pointer to a new Client initialized with the default
 // localhost endpoints for factomd and factom-walletd. If factomdDoer or
 // walletdDoer is nil, the default http.Client is used. See jsonrpc2.NewClient
 // for more details.
-func NewClient(factomdDoer, walletdDoer jsonrpc2.RequestDoer) *Client {
+func NewClient() *Client {
 	c := &Client{FactomdServer: FactomdDefault, WalletdServer: WalletdDefault}
-	c.Factomd = jsonrpc2.NewClient(factomdDoer)
-	c.Walletd = jsonrpc2.NewClient(walletdDoer)
+	c.Factomd = jsonrpc2.Client{}
+	c.Walletd = jsonrpc2.Client{}
 	return c
 }
 
 // FactomdRequest makes a request to factomd's v2 API.
 func (c *Client) FactomdRequest(method string, params, result interface{}) error {
-	url := c.FactomdServer + "/v2"
+	url := c.FactomdServer
 	if c.Factomd.DebugRequest {
 		fmt.Println("factomd:", url)
 	}
@@ -67,7 +67,7 @@ func (c *Client) FactomdRequest(method string, params, result interface{}) error
 
 // WalletdRequest makes a request to factom-walletd's v2 API.
 func (c *Client) WalletdRequest(method string, params, result interface{}) error {
-	url := c.WalletdServer + "/v2"
+	url := c.WalletdServer
 	if c.Walletd.DebugRequest {
 		fmt.Println("factom-walletd:", url)
 	}

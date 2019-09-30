@@ -175,7 +175,7 @@ func (eb EBlock) Prev() EBlock {
 //
 // If you are only interested in obtaining the first entry block in eb's chain,
 // and not all of the intermediary ones, then use GetFirst.
-func (eb *EBlock) GetPrevAll(c *Client) ([]EBlock, error) {
+func (eb EBlock) GetPrevAll(c *Client) ([]EBlock, error) {
 	return eb.GetPrevUpTo(c, Bytes32{})
 }
 
@@ -192,15 +192,15 @@ func (eb *EBlock) GetPrevAll(c *Client) ([]EBlock, error) {
 //
 // If the beginning of the chain is reached without finding keyMR, then
 // fmt.Errorf("end of chain") is returned.
-func (eb *EBlock) GetPrevUpTo(c *Client, keyMR Bytes32) ([]EBlock, error) {
+func (eb EBlock) GetPrevUpTo(c *Client, keyMR Bytes32) ([]EBlock, error) {
 	if err := eb.Get(c); err != nil {
 		return nil, err
 	}
 	if *eb.KeyMR == keyMR {
 		return []EBlock{}, nil
 	}
-	ebs := []EBlock{*eb}
-	e := *eb
+	ebs := []EBlock{eb}
+	e := eb
 	for {
 		if *e.PrevKeyMR == keyMR {
 			return ebs, nil
@@ -284,17 +284,24 @@ func (eb *EBlock) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("invalid length")
 	}
 
-	eb.ChainID = new(Bytes32)
-	i := copy(eb.ChainID[:], data[:len(eb.ChainID)])
+	var chainID Bytes32
+	i := copy(chainID[:], data)
+	if eb.ChainID != nil {
+		if *eb.ChainID != chainID {
+			return fmt.Errorf("invalid ChainID")
+		}
+	} else {
+		eb.ChainID = &chainID
+	}
 
 	eb.BodyMR = new(Bytes32)
-	i += copy(eb.BodyMR[:], data[i:i+len(eb.BodyMR)])
+	i += copy(eb.BodyMR[:], data[i:])
 
 	eb.PrevKeyMR = new(Bytes32)
-	i += copy(eb.PrevKeyMR[:], data[i:i+len(eb.PrevKeyMR)])
+	i += copy(eb.PrevKeyMR[:], data[i:])
 
 	eb.PrevFullHash = new(Bytes32)
-	i += copy(eb.PrevFullHash[:], data[i:i+len(eb.PrevFullHash)])
+	i += copy(eb.PrevFullHash[:], data[i:])
 
 	eb.Sequence = binary.BigEndian.Uint32(data[i : i+4])
 	i += 4

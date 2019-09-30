@@ -31,7 +31,7 @@ import (
 func TestHeights(t *testing.T) {
 	var h Heights
 	assert := assert.New(t)
-	c := NewClient(nil, nil)
+	c := NewClient()
 	err := h.Get(c)
 	assert.NoError(err)
 	zero := uint32(0)

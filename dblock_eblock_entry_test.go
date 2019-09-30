@@ -31,11 +31,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var courtesyNode = "https://courtesy-node.factom.com"
+var courtesyNode = "https://courtesy-node.factom.com/v2"
 
 func TestDataStructures(t *testing.T) {
 	height := uint32(166587)
-	c := NewClient(nil, nil)
+	c := NewClient()
 	c.Factomd.DebugRequest = true
 	var db DBlock
 	db.Height = height

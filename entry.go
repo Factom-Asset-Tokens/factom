@@ -39,13 +39,13 @@ import (
 // to a given ChainID.
 type Entry struct {
 	// EBlock.Get populates the Hash, Timestamp, ChainID, and Height.
-	Hash      *Bytes32
-	Timestamp time.Time
-	ChainID   *Bytes32
+	Hash      *Bytes32  `json:"entryhash,omitempty"`
+	Timestamp time.Time `json:"-"`
+	ChainID   *Bytes32  `json:"chainid,omitempty"`
 
 	// Entry.Get populates the Content and ExtIDs.
-	ExtIDs  []Bytes
-	Content Bytes
+	ExtIDs  []Bytes `json:"extids"`
+	Content Bytes   `json:"content"`
 }
 
 // IsPopulated returns true if e has already been successfully populated by a
@@ -53,8 +53,7 @@ type Entry struct {
 func (e Entry) IsPopulated() bool {
 	return e.ExtIDs != nil &&
 		e.Content != nil &&
-		e.ChainID != nil &&
-		e.Hash != nil
+		e.ChainID != nil
 }
 
 // Get populates e with the Entry data for its e.Hash.
@@ -149,13 +148,13 @@ func (e Entry) Create(c *Client, ec ECAddress, newChain bool) (*Bytes32, error) 
 	return commit.TxID, nil
 }
 
-// ComposeCreate composes e locally and then Commit and Reveals it using
-// factomd.
+// ComposeCreate calls e.Compose and then Commit and Reveals it to factomd.
 //
 // This does not make any calls to factom-walletd.
 //
-// The Factom Entry Transaction ID is returned.
-func (e Entry) ComposeCreate(c *Client, es EsAddress, newChain bool) (*Bytes32, error) {
+// The Factom Entry Transaction ID is returned. The e.Hash will be populated if
+// not nil.
+func (e *Entry) ComposeCreate(c *Client, es EsAddress, newChain bool) (*Bytes32, error) {
 	commit, reveal, txID, err := e.Compose(es, newChain)
 	if err != nil {
 		return nil, err
@@ -224,10 +223,12 @@ const (
 // Compose generates the commit and reveal data required to submit an entry to
 // factomd.
 //
+// If e.Hash is nil, it will be populated.
+//
 // To compose the first entry in a new chain, you must set up the correct
 // ChainID for the Entry by calling e.SetNewChainID before calling e.Compose
 // with newChain to true.
-func (e Entry) Compose(es EsAddress, newChain bool) (
+func (e *Entry) Compose(es EsAddress, newChain bool) (
 	commit []byte, reveal []byte, txID *Bytes32, err error) {
 	reveal, err = e.MarshalBinary()
 	if err != nil {
@@ -248,6 +249,11 @@ func (e Entry) Compose(es EsAddress, newChain bool) (
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, uint64(ms))
 	i += copy(commit[i:], buf[2:]) // Omit the top 2 bytes.
+
+	if e.Hash == nil {
+		e.Hash = new(Bytes32)
+		*e.Hash = ComputeEntryHash(reveal)
+	}
 
 	if newChain {
 		// ChainID Hash

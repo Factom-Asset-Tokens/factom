@@ -43,6 +43,7 @@ var marshalBinaryTests = []struct {
 		Hash: NewBytes32(hexToBytes(
 			"72177d733dcd0492066b79c5f3e417aef7f22909674f7dc351ca13b04742bb91")),
 		ChainID: func() *Bytes32 { c := ChainID([]Bytes{Bytes("test")}); return &c }(),
+		ExtIDs:  []Bytes{},
 		Content: hexToBytes("5061796c6f616448657265"),
 	},
 }}
@@ -76,7 +77,7 @@ var unmarshalBinaryTests = []struct {
 	Name: "invalid (too short)",
 	Data: hexToBytes(
 		"009005bb7dd69fb9910ee0b0db7b8a01198f03623eab6dadf1eba01f9dbc207577"),
-	Error: "insufficient length",
+	Error: "invalid length",
 }, {
 	Name: "invalid (version byte)",
 	Data: hexToBytes(
@@ -118,6 +119,7 @@ func TestEntry(t *testing.T) {
 			if len(test.Error) == 0 {
 				require.NoError(err)
 				require.NotNil(e.ChainID)
+				return
 			}
 			require.EqualError(err, test.Error)
 		})
@@ -127,7 +129,7 @@ func TestEntry(t *testing.T) {
 	ec, _ := NewECAddress(ecAddressStr)
 	chainID := ChainID([]Bytes{Bytes(ec[:])})
 	t.Run("ComposeCreate", func(t *testing.T) {
-		c := NewClient(nil, nil)
+		c := NewClient()
 		es, err := ec.GetEsAddress(c)
 		if _, ok := err.(jsonrpc2.Error); ok {
 			// Skip if the EC address is not in the wallet.
@@ -165,7 +167,7 @@ func TestEntry(t *testing.T) {
 		fmt.Println("Chain ID: ", e.ChainID)
 	})
 	t.Run("Create", func(t *testing.T) {
-		c := NewClient(nil, nil)
+		c := NewClient()
 		c.Factomd.DebugRequest = true
 		c.Walletd.DebugRequest = true
 		balance, err := ec.GetBalance(c)
@@ -205,7 +207,7 @@ func TestEntry(t *testing.T) {
 			ExtIDs:  []Bytes{Bytes(ec[:])},
 			ChainID: &chainID}
 		_, _, _, err := e.Compose(EsAddress(ec), false)
-		assert.EqualError(err, "Entry cannot be larger than 10KB")
+		assert.EqualError(err, "length exceeds 10275")
 	})
 	t.Run("EntryCost", func(t *testing.T) {
 		assert := assert.New(t)
