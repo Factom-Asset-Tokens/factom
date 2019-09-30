@@ -100,7 +100,7 @@ func (s *FactoidTransaction) Valid() bool {
 			return false
 		}
 		// RCD should match the input
-		if *expAddr != *s.FCTInputs[i].Address {
+		if bytes.Compare(expAddr[:], s.FCTInputs[i].Address[:]) != 0 {
 			return false
 		}
 

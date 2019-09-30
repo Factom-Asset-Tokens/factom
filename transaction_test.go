@@ -33,6 +33,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TODO: This function can be removed when FactoidIO takes an rcd1 vs the interface. Currently
+// 		the test requires the interface, so this is the workout until that change.
+func NewRCD1FromString(s string) *RCD1 {
+	r := RCD1(*NewBytes32FromString("10560cc304eb0a3b0540bc387930d2a7b2373270cfbd8448bc68a867cefb9f74"))
+	return &r
+}
+
 var txMarshalBinaryTests = []struct {
 	Name     string
 	TxID     *Bytes32
@@ -67,10 +74,8 @@ var txMarshalBinaryTests = []struct {
 		Signatures: []FactoidTransactionSignature{
 			{
 				// RCD 0110560cc304eb0a3b0540bc387930d2a7b2373270cfbd8448bc68a867cefb9f74
-				ReedeemCondition: &RCD1{
-					PublicKey: NewBytes32FromString("10560cc304eb0a3b0540bc387930d2a7b2373270cfbd8448bc68a867cefb9f74"),
-				},
-				SignatureBlock: NewBytesFromString("d68d5ce3bee5e69f113d643df1f6ba0dd476ada40633751537d5b840e2be811d4734ef9f679966fa86b1777c8a387986b4e21987174f9df808c2081be2c04a08"),
+				ReedeemCondition: NewRCD1FromString("10560cc304eb0a3b0540bc387930d2a7b2373270cfbd8448bc68a867cefb9f74"),
+				SignatureBlock:   NewBytesFromString("d68d5ce3bee5e69f113d643df1f6ba0dd476ada40633751537d5b840e2be811d4734ef9f679966fa86b1777c8a387986b4e21987174f9df808c2081be2c04a08"),
 			},
 		},
 	},
@@ -81,6 +86,7 @@ func TestFactoidTransactionMarshalBinary(t *testing.T) {
 		t.Run(test.Name, func(t *testing.T) {
 			f := test.FactoidTransaction
 			txid, err := f.ComputeTransactionID()
+			f.TransactionID = &txid
 			assert := assert.New(t)
 			assert.NoError(err)
 			assert.Equal(*f.TransactionID, txid)

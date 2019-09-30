@@ -20,7 +20,7 @@ type RCD interface {
 	SignatureBlockSize() int
 
 	// Address returns the sha256(rcd) that is the factoid address
-	Address() (*Bytes32, error)
+	Address() (FAAddress, error)
 
 	Validate(msg Bytes, signature Bytes) bool
 
@@ -71,42 +71,41 @@ func DecodeRCD(data []byte) (reedemCondition RCD, read int, err error) {
 
 // RCD1 is the simple rcd of a factoid address with a single public key.
 // RCD1 contains the type and a single 32 byte ed25519 public key
-type RCD1 struct {
-	PublicKey *Bytes32
-}
+type RCD1 [ed25519.PublicKeySize]byte
 
-func (r *RCD1) Type() uint64 {
+func (r RCD1) Type() uint64 {
 	return 1
 }
 
-func (r *RCD1) SignatureBlockSize() int {
-	return 64 // 64 byte ed25519 sig
+func (r RCD1) SignatureBlockSize() int {
+	return ed25519.SignatureSize // 64 byte ed25519 sig
 }
 
-func (r *RCD1) Address() (*Bytes32, error) {
+func (r RCD1) Address() (FAAddress, error) {
 	data, err := r.MarshalBinary()
 	if err != nil {
-		return nil, err
+		return FAAddress{}, err
 	}
-	addr := Bytes32(sha256d(data))
-	return &addr, nil
+	addr := sha256d(data)
+
+	return FAAddress(addr), nil
 }
 
-func (r *RCD1) Validate(msg Bytes, signature Bytes) bool {
+func (r RCD1) Validate(msg Bytes, signature Bytes) bool {
 	// TODO: This library might not be doing cannonical ed25519 signature checking
 	//		to ensure all signatures are on the correct side of the curve
-	return ed25519.Verify(r.PublicKey[:], msg, signature)
+	return ed25519.Verify(r[:], msg, signature)
 }
 
 // IsPopulated returns true if r has already been successfully populated by a
-// call to Get. IsPopulated returns false if r.PublicKey is nil.
-func (r *RCD1) IsPopulated() bool {
-	return r.PublicKey != nil
+// call to. IsPopulated returns false if r is an all zero byte array
+func (r RCD1) IsPopulated() bool {
+	return !Bytes32(r).IsZero()
 }
 
 // MarshalBinary marshals the rcd type to its binary representation. See
 // UnmarshalBinary for encoding details.
-func (r *RCD1) MarshalBinary() ([]byte, error) {
+func (r RCD1) MarshalBinary() ([]byte, error) {
 	if !r.IsPopulated() {
 		return nil, fmt.Errorf("not populated")
 	}
@@ -114,7 +113,7 @@ func (r *RCD1) MarshalBinary() ([]byte, error) {
 	data := make([]byte, RCDType1Len)
 	data[0] = 1
 	i := 1
-	i += copy(data[i:], r.PublicKey[:])
+	i += copy(data[i:], r[:])
 	return data, nil
 }
 
@@ -137,8 +136,7 @@ func (r *RCD1) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong rcd type byte")
 	}
 
-	r.PublicKey = new(Bytes32)
-	copy(r.PublicKey[:], data[1:])
+	copy(r[:], data[1:])
 
 	return nil
 }

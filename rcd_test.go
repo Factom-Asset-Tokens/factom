@@ -86,7 +86,7 @@ func TestDecodeRCD(t *testing.T) {
 				assert.Equal(rcd.Type(), test.RCDType)
 				addr, err := rcd.Address()
 				require.NoError(err)
-				assert.Equal(addr, test.Address)
+				assert.Equal(addr[:], test.Address[:])
 			} else {
 				require.EqualError(err, test.Error)
 			}
