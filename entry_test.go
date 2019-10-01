@@ -42,7 +42,10 @@ var marshalBinaryTests = []struct {
 	Entry: Entry{
 		Hash: NewBytes32(hexToBytes(
 			"72177d733dcd0492066b79c5f3e417aef7f22909674f7dc351ca13b04742bb91")),
-		ChainID: func() *Bytes32 { c := ChainID([]Bytes{Bytes("test")}); return &c }(),
+		ChainID: func() *Bytes32 {
+			c := ComputeChainID([]Bytes{Bytes("test")})
+			return &c
+		}(),
 		ExtIDs:  []Bytes{},
 		Content: hexToBytes("5061796c6f616448657265"),
 	},
@@ -127,7 +130,7 @@ func TestEntry(t *testing.T) {
 
 	var ecAddressStr = "EC1zANmWuEMYoH6VizJg6uFaEdi8Excn1VbLN99KRuxh3GSvB7YQ"
 	ec, _ := NewECAddress(ecAddressStr)
-	chainID := ChainID([]Bytes{Bytes(ec[:])})
+	chainID := ComputeChainID([]Bytes{Bytes(ec[:])})
 	t.Run("ComposeCreate", func(t *testing.T) {
 		c := NewClient()
 		es, err := ec.GetEsAddress(c)
@@ -149,19 +152,23 @@ func TestEntry(t *testing.T) {
 		e := Entry{Content: Bytes(randData[:]),
 			ExtIDs:  []Bytes{Bytes(ec[:])},
 			ChainID: &chainID}
-		tx, err := e.ComposeCreate(c, es, false)
+		tx, err := e.ComposeCreate(c, es)
 		assert.NoError(err)
 		assert.NotNil(tx)
+		assert.NotNil(e.Hash)
 		fmt.Println("Tx: ", tx)
 		fmt.Println("Entry Hash: ", e.Hash)
 		fmt.Println("Chain ID: ", e.ChainID)
 
+		e.Hash = nil
+		e.ChainID = nil
 		e.Content = Bytes(randData[:])
 		e.ExtIDs = []Bytes{Bytes(randData[:])}
-		e.SetNewChainID()
-		tx, err = e.ComposeCreate(c, es, true)
+		tx, err = e.ComposeCreate(c, es)
 		assert.NoError(err)
 		assert.NotNil(tx)
+		assert.NotNil(e.Hash)
+		assert.NotNil(e.ChainID)
 		fmt.Println("Tx: ", tx)
 		fmt.Println("Entry Hash: ", e.Hash)
 		fmt.Println("Chain ID: ", e.ChainID)
@@ -184,9 +191,10 @@ func TestEntry(t *testing.T) {
 		e := Entry{Content: Bytes(randData[:]),
 			ExtIDs:  []Bytes{Bytes(ec[:])},
 			ChainID: &chainID}
-		tx, err := e.Create(c, ec, false)
+		tx, err := e.Create(c, ec)
 		assert.NoError(err)
 		assert.NotNil(tx)
+		assert.NotNil(e.Hash)
 		fmt.Println("Tx: ", tx)
 		fmt.Println("Entry Hash: ", e.Hash)
 		fmt.Println("Chain ID: ", e.ChainID)
@@ -194,9 +202,11 @@ func TestEntry(t *testing.T) {
 		e.ChainID = nil
 		e.Content = Bytes(randData[:])
 		e.ExtIDs = []Bytes{Bytes(randData[:])}
-		tx, err = e.Create(c, ec, true)
+		tx, err = e.Create(c, ec)
 		assert.NoError(err)
 		assert.NotNil(tx)
+		assert.NotNil(e.Hash)
+		assert.NotNil(e.ChainID)
 		fmt.Println("Tx: ", tx)
 		fmt.Println("Entry Hash: ", e.Hash)
 		fmt.Println("Chain ID: ", e.ChainID)
@@ -206,7 +216,7 @@ func TestEntry(t *testing.T) {
 		e := Entry{Content: make(Bytes, 11000),
 			ExtIDs:  []Bytes{Bytes(ec[:])},
 			ChainID: &chainID}
-		_, _, _, err := e.Compose(EsAddress(ec), false)
+		_, _, _, err := e.Compose(EsAddress(ec))
 		assert.EqualError(err, "length exceeds 10275")
 	})
 	t.Run("EntryCost", func(t *testing.T) {
