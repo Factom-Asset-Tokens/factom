@@ -31,15 +31,21 @@ import (
 	"time"
 )
 
+var (
+	aBlockChainID  = Bytes32{31: 0x0a}
+	ecBlockChainID = Bytes32{31: 0x0c}
+	fBlockChainID  = Bytes32{31: 0x0f}
+)
+
 // ABlockChainID returns the ChainID of the Admin Block Chain, 0x00..0a.
-func ABlockChainID() Bytes32 { return Bytes32{31: 0x0a} }
+func ABlockChainID() Bytes32 { return aBlockChainID }
 
 // ECBlockChainID returns the ChainID of the Entry Credit Block Chain,
 // 0x00..0c.
-func ECBlockChainID() Bytes32 { return Bytes32{31: 0x0c} }
+func ECBlockChainID() Bytes32 { return ecBlockChainID }
 
 // FBlockChainID returns the ChainID of the Factoid Block Chain, 0x00..0f.
-func FBlockChainID() Bytes32 { return Bytes32{31: 0x0f} }
+func FBlockChainID() Bytes32 { return fBlockChainID }
 
 // DBlock represents a Factom Directory Block.
 type DBlock struct {

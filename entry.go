@@ -60,7 +60,7 @@ func (e Entry) IsPopulated() bool {
 //
 // If e.Hash is nil, an error will be returned.
 //
-// After a successful call e.Content, e.ExtIDs, and e.ChainID  will be
+// After a successful call e.Content, e.ExtIDs, and e.ChainID will be
 // populated.
 func (e *Entry) Get(c *Client) error {
 	if e.IsPopulated() {
@@ -112,7 +112,9 @@ type commitResult struct {
 // to commit and reveal a new Entry or new Chain, if newChain is true.
 //
 // The given ec must exist in factom-walletd's keystore.
-func (e Entry) Create(c *Client, ec ECAddress, newChain bool) (*Bytes32, error) {
+//
+// The commit transaction ID is returned.
+func (e Entry) Create(c *Client, ec ECAddress, newChain bool) (Bytes32, error) {
 	var params interface{}
 	var method string
 
@@ -129,23 +131,23 @@ func (e Entry) Create(c *Client, ec ECAddress, newChain bool) (*Bytes32, error) 
 	result := composeResult{}
 
 	if err := c.WalletdRequest(method, params, &result); err != nil {
-		return nil, err
+		return Bytes32{}, err
 	}
 	if len(result.Commit.Method) == 0 {
-		return nil, fmt.Errorf("Wallet request error: method: %#v", method)
+		return Bytes32{}, fmt.Errorf("Wallet request error: method: %#v", method)
 	}
 
 	var commit commitResult
 	if err := c.FactomdRequest(
 		result.Commit.Method, result.Commit.Params, &commit); err != nil {
-		return nil, err
+		return Bytes32{}, err
 	}
 
 	if err := c.FactomdRequest(
 		result.Reveal.Method, result.Reveal.Params, e); err != nil {
-		return nil, err
+		return Bytes32{}, err
 	}
-	return commit.TxID, nil
+	return *commit.TxID, nil
 }
 
 // ComposeCreate calls e.Compose and then Commit and Reveals it to factomd.
@@ -292,7 +294,7 @@ func (e *Entry) Compose(es EsAddress, newChain bool) (
 // result of ChainID(e.ExtIDs).
 func (e *Entry) SetNewChainID() {
 	e.ChainID = new(Bytes32)
-	*e.ChainID = ChainID(e.ExtIDs)
+	*e.ChainID = ComputeChainID(e.ExtIDs)
 }
 
 // NewChainCost is the fixed added cost of creating a new chain.

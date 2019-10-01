@@ -58,8 +58,8 @@ func ComputeKeyMR(headerHash, bodyMR *Bytes32) Bytes32 {
 	return sha256.Sum256(data)
 }
 
-// ChainID returns the chain ID for a set of NameIDs.
-func ChainID(nameIDs []Bytes) Bytes32 {
+// ComputeChainID returns the chain ID for a set of NameIDs.
+func ComputeChainID(nameIDs []Bytes) Bytes32 {
 	hash := sha256.New()
 	for _, id := range nameIDs {
 		idSum := sha256.Sum256(id)

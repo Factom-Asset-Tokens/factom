@@ -123,7 +123,7 @@ func (i *Identity) UnmarshalBinary(data []byte) error {
 	if !ValidIdentityNameIDs(i.ExtIDs) {
 		return fmt.Errorf("invalid identity NameID format")
 	}
-	if *i.ChainID != ChainID(i.ExtIDs) {
+	if *i.ChainID != ComputeChainID(i.ExtIDs) {
 		return fmt.Errorf("invalid ExtIDs: Chain ID mismatch")
 	}
 	copy(i.ID1[:], i.ExtIDs[2])
