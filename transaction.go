@@ -237,7 +237,7 @@ func (f *FactoidTransaction) MarshalLedgerBinary() ([]byte, error) {
 	}
 
 	data := make([]byte, len(header)+len(inputs)+len(fctout)+len(ecout))
-	i := 0
+	var i int
 	i += copy(data[i:], header)
 	i += copy(data[i:], inputs)
 	i += copy(data[i:], fctout)
@@ -274,7 +274,7 @@ func (f *FactoidTransaction) MarshalBinary() ([]byte, error) {
 func (f *FactoidTransaction) MarshalHeaderBinary() ([]byte, error) {
 	version := varintf.Encode(f.Version)
 	data := make([]byte, TransactionHeadMinLen+len(version))
-	i := 0
+	var i int
 	i += copy(data[i:], version)
 
 	// Do the timestamp as 6 bytes in ms
@@ -317,7 +317,7 @@ func (io *FactoidTransactionIO) MarshalBinary() ([]byte, error) {
 
 	amount := varintf.Encode(io.Amount)
 	data := make([]byte, 32+len(amount))
-	i := 0
+	var i int
 	i += copy(data[i:], amount)
 	i += copy(data[i:], io.Address[:])
 	return data, nil
@@ -336,7 +336,7 @@ func (s *FactoidTransactionSignature) MarshalBinary() ([]byte, error) {
 	}
 
 	data := make([]byte, len(rcdData)+len(s.SignatureBlock))
-	i := 0
+	var i int
 	i += copy(data[i:], rcdData)
 	i += copy(data[i:], s.SignatureBlock)
 	return data, nil
@@ -448,8 +448,8 @@ func (f *FactoidTransaction) DecodeHeader(data []byte) (int, error) {
 // the set of factoid transactions ios. The set length should be preset before
 // calling this function. It will return how many bytes it read and return an error.
 func (ios FactoidTransactionIOs) Decode(data []byte) (int, error) {
-	i := 0
-	for c := 0; c < len(ios); c++ {
+	var i int
+	for c := range ios {
 		read, err := ios[c].Decode(data[i:])
 		if err != nil {
 			return 0, err

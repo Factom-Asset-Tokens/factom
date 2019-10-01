@@ -176,7 +176,8 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 		return fmt.Errorf("insufficient length")
 	}
 
-	if bytes.Compare(data[:32], factoidBlockChainID[:]) != 0 {
+	expFChain := FBlockChainID()
+	if bytes.Compare(data[:32], expFChain[:]) != 0 {
 		return fmt.Errorf("invalid factoid chainid")
 	}
 	i := 32
@@ -257,7 +258,7 @@ func (fb *FBlock) MarshalBinary() ([]byte, error) {
 
 	data := make([]byte, len(header)+int(fb.Header.BodySize))
 
-	i := 0
+	var i int
 	i += copy(data[i:], header)
 
 	period := 0
@@ -293,8 +294,9 @@ func (fb *FBlock) MarshalBinaryHeader() ([]byte, error) {
 
 	expansionSize := varintf.Encode(uint64(fb.Header.ExpansionSize))
 	data := make([]byte, FBlockMinHeaderLen+len(expansionSize)+len(fb.Header.ExpansionBytes))
-	i := 0
-	i += copy(data[i:], factoidBlockChainID[:])
+	var i int
+	fBlockChain := FBlockChainID()
+	i += copy(data[i:], fBlockChain[:])
 	i += copy(data[i:], fb.Header.BodyMR[:])
 	i += copy(data[i:], fb.Header.PrevKeyMR[:])
 	i += copy(data[i:], fb.Header.PrevLedgerKeyMR[:])

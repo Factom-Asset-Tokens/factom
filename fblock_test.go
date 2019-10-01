@@ -111,7 +111,9 @@ func TestFactoidBlock_UnmarshalBinary(t *testing.T) {
 			cl := ClientWithFixedRPCResponse(struct {
 				Data Bytes `json:"data"`
 			}{test.Data})
-			err := f.Get(NewClient(cl, nil))
+			factomClient := NewClient()
+			factomClient.Factomd.Client = *cl
+			err := f.Get(factomClient)
 			require.NoError(err)
 
 			assert.Equal(test.KeyMr, f.KeyMR)
