@@ -72,9 +72,6 @@ func (b *Bytes) Set(hexStr string) error {
 
 // UnmarshalText decodes a hex string with exactly 32 bytes of data into b.
 func (b *Bytes32) UnmarshalText(text []byte) error {
-	if len(text) == 0 {
-		return nil
-	}
 	if len(text) != hex.EncodedLen(len(b)) {
 		return fmt.Errorf("invalid length")
 	}
