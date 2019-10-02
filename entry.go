@@ -212,39 +212,24 @@ func (c *Client) Reveal(reveal []byte) error {
 	return nil
 }
 
-const (
-	commitLen = 1 + // version
-		6 + // timestamp
-		32 + // entry hash
-		1 + // ec cost
-		32 + // ec pub
-		64 // sig
-	chainCommitLen = 1 + // version
-		6 + // timestamp
-		32 + // chain id hash
-		32 + // commit weld
-		32 + // entry hash
-		1 + // ec cost
-		32 + // ec pub
-		64 // sig
-)
-
-// Compose generates the commit and reveal data required to submit an entry to
-// factomd. The Transaction ID is also returned.
+// Compose generates the commit and reveal data required to submit an Entry to
+// factomd with Client.Commit and Client.Reveal. The Transaction ID is also
+// returned.
 //
 // The e.Hash will be populated if not nil.
 //
 // If e.ChainID == nil, a new chain will be created, and e.ChainID will be
 // populated.
+//
+// If the reveal is already available to the caller, use GenerateCommit to
+// create the commit without recreating the reveal, which is simply the raw
+// data of an Entry.
 func (e *Entry) Compose(es EsAddress) (
 	commit []byte, reveal []byte, txID Bytes32, err error) {
 
 	newChain := e.ChainID == nil
 
-	commitLen := commitLen
 	if newChain {
-		commitLen = chainCommitLen
-
 		e.ChainID = new(Bytes32)
 		*e.ChainID = ComputeChainID(e.ExtIDs)
 	}
@@ -254,7 +239,71 @@ func (e *Entry) Compose(es EsAddress) (
 		return
 	}
 
-	commit = make([]byte, commitLen)
+	if e.Hash == nil {
+		e.Hash = new(Bytes32)
+		*e.Hash = ComputeEntryHash(reveal)
+	}
+
+	commit, txID = GenerateCommit(es, reveal, e.Hash, newChain)
+	return
+}
+
+const (
+	commitLen = 1 + // version
+		6 + // timestamp
+		32 + // entry hash
+		1 + // ec cost
+		32 + // ec pub
+		64 // sig
+	chainCommitLen = commitLen +
+		32 + // chain id hash
+		32 // commit weld
+)
+
+// GenerateCommit generates a commit message signed by es for the given
+// entrydata and hash.
+//
+// The entrydata must be the valid raw data encoding of an Entry, which can be
+// obtained using Entry.MarshalBinary.
+//
+// The hash must be the valid Entry Hash, which is anything that
+// Entry.UnmarshalBinary can parse without error and can be obtained using
+// ComputeEntryHash.
+//
+// If newChain is true, then the commit will be a new Chain commit. The ChainID
+// will be pulled from the entrydata.
+//
+// If successful, the commit and Entry Transaction ID will be returned.
+//      txID == sha256(commit[:len(commit)-96])
+//
+// If either entrydata or hash is not valid, the return values will be invalid
+// and panics may occur. It is up to the caller to ensure that the entrydata
+// and hash are valid.
+//
+// This allows the caller to manage the memory associated with the entrydata
+// and hash, rather than having to regenerate it repeatedly using
+// Entry.MarshalBinary. For a higher level API see the functions Entry.Compose,
+// Entry.ComposeCreate, and Entry.Create.
+//
+// The commit message data format is as follows:
+//      [Version (0x00)] +
+//	[Timestamp in ms (6 bytes BE)] +
+//      (if newChain)
+//	        [ChainID Hash, sha256d(ChainID) (Bytes32)] +
+//	        [Commit Weld, sha256d(hash|chainID) (Bytes32)] +
+//	[Entry Hash (Bytes32)] +
+//	[EC Cost (1 byte)] +
+//	[EC Public Key (32 Bytes)] +
+//	[Signature of data up to and including EC Cost (64 Bytes)]
+func GenerateCommit(es EsAddress, entrydata []byte, hash *Bytes32,
+	newChain bool) ([]byte, Bytes32) {
+
+	commitLen := commitLen
+	if newChain {
+		commitLen = chainCommitLen
+	}
+
+	commit := make([]byte, commitLen)
 
 	i := 1 // Skip version byte
 
@@ -264,31 +313,25 @@ func (e *Entry) Compose(es EsAddress) (
 		time.Duration(-rand.Int63n(int64(1*time.Hour)))).UnixNano() / 1e6
 	i += putInt48(commit[i:], ms)
 
-	if e.Hash == nil {
-		e.Hash = new(Bytes32)
-		*e.Hash = ComputeEntryHash(reveal)
-	}
-
 	if newChain {
+		chainID := entrydata[1:len(Bytes32{})]
 		// ChainID Hash
-		chainIDHash := sha256d(e.ChainID[:])
+		chainIDHash := sha256d(chainID)
 		i += copy(commit[i:], chainIDHash[:])
 
 		// Commit Weld sha256d(entryhash | chainid)
-		weld := sha256d(append(e.Hash[:], e.ChainID[:]...))
+		weld := sha256d(append(hash[:], chainID[:]...))
 		i += copy(commit[i:], weld[:])
 	}
 
 	// Entry Hash
-	i += copy(commit[i:], e.Hash[:])
+	i += copy(commit[i:], hash[:])
 
-	// EntryCost will never error since e.MarshalBinary already did a
-	// length check.
-	cost, _ := EntryCost(len(reveal), newChain)
+	cost, _ := EntryCost(len(entrydata), newChain)
 	commit[i] = byte(cost)
 	i++
 
-	txID = sha256.Sum256(commit[:i])
+	txID := sha256.Sum256(commit[:i])
 
 	// Public Key
 	signedDataLen := i
@@ -298,7 +341,7 @@ func (e *Entry) Compose(es EsAddress) (
 	sig := ed25519.Sign(es.PrivateKey(), commit[:signedDataLen])
 	copy(commit[i:], sig)
 
-	return
+	return commit, txID
 }
 
 // putInt48 puts the least significant 48 bits of x into the first six bytes
@@ -322,12 +365,15 @@ const NewChainCost = 10
 // length equal to size. An error is returned if size exceeds 10275.
 //
 // Set newChain to true to add the NewChainCost.
-func EntryCost(size int, newChain bool) (int8, error) {
+func EntryCost(size int, newChain bool) (uint8, error) {
+	if size < EntryHeaderLen {
+		return 0, fmt.Errorf("invalid size")
+	}
 	size -= EntryHeaderLen
 	if size > 10240 {
 		return 0, fmt.Errorf("Entry cannot be larger than 10KB")
 	}
-	cost := int8(size / 1024)
+	cost := uint8(size / 1024)
 	if size%1024 > 0 {
 		cost++
 	}
@@ -343,7 +389,7 @@ func EntryCost(size int, newChain bool) (int8, error) {
 // Cost returns the EntryCost of e, using e.MarshalBinaryLen().
 //
 // If e.ChainID == nil, the NewChainCost is added.
-func (e Entry) Cost() (int8, error) {
+func (e Entry) Cost() (uint8, error) {
 	return EntryCost(e.MarshalBinaryLen(), e.ChainID == nil)
 }
 

@@ -224,7 +224,7 @@ func TestEntry(t *testing.T) {
 		_, err := EntryCost(11000, false)
 		assert.EqualError(err, "Entry cannot be larger than 10KB")
 		cost, _ := EntryCost(0, false)
-		assert.Equal(int8(1), cost)
+		assert.Equal(uint8(1), cost)
 	})
 }
 
