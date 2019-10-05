@@ -222,7 +222,7 @@ func TestIdentity(t *testing.T) {
 			}
 			c.FactomdServer = test.FactomServer
 			i := test.Identity
-			err := i.Get(c)
+			err := i.Get(nil, c)
 			populated := i.IsPopulated()
 			if len(test.Error) > 0 {
 				assert.EqualError(err, test.Error)
@@ -235,8 +235,8 @@ func TestIdentity(t *testing.T) {
 			}
 			assert.True(populated)
 			assert.Equal(int(test.Height), int(i.Height))
-			assert.Equal(*test.ID1Key, i.ID1)
-			assert.NoError(i.Get(c))
+			assert.Equal(test.ID1Key, i.ID1)
+			assert.NoError(i.Get(nil, c))
 		})
 	}
 }

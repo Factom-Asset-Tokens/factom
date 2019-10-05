@@ -23,6 +23,7 @@
 package factom
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -41,8 +42,8 @@ var (
 
 type addressUnmarshalJSONTest struct {
 	Name   string
-	Adr    Address
-	ExpAdr Address
+	Adr    interface{}
+	ExpAdr interface{}
 	Data   string
 	Err    string
 }
@@ -82,17 +83,35 @@ var addressUnmarshalJSONTests = []addressUnmarshalJSONTest{{
 		return &adr
 	}(),
 }, {
-	Name: "invalid type",
+	Name: "FA/invalid type",
 	Data: `{}`,
-	Err:  "json: cannot unmarshal object into Go value of type string",
+	Err:  "json: cannot unmarshal object into Go value of type *factom.FAAddress",
+	Adr:  new(FAAddress),
 }, {
-	Name: "invalid type",
+	Name: "FA/invalid type",
 	Data: `5.5`,
-	Err:  "json: cannot unmarshal number into Go value of type string",
+	Err:  "json: cannot unmarshal number into Go value of type *factom.FAAddress",
+	Adr:  new(FAAddress),
 }, {
-	Name: "invalid type",
+	Name: "FA/invalid type",
 	Data: `["hello"]`,
-	Err:  "json: cannot unmarshal array into Go value of type string",
+	Err:  "json: cannot unmarshal array into Go value of type *factom.FAAddress",
+	Adr:  new(FAAddress),
+}, {
+	Name: "EC/invalid type",
+	Data: `{}`,
+	Err:  "json: cannot unmarshal object into Go value of type *factom.ECAddress",
+	Adr:  new(ECAddress),
+}, {
+	Name: "EC/invalid type",
+	Data: `5.5`,
+	Err:  "json: cannot unmarshal number into Go value of type *factom.ECAddress",
+	Adr:  new(ECAddress),
+}, {
+	Name: "EC/invalid type",
+	Data: `["hello"]`,
+	Err:  "json: cannot unmarshal array into Go value of type *factom.ECAddress",
+	Adr:  new(ECAddress),
 }, {
 	Name: "invalid length",
 	Data: fmt.Sprintf("%q", FAAddressStr[0:len(FAAddressStr)-1]),
@@ -105,7 +124,7 @@ var addressUnmarshalJSONTests = []addressUnmarshalJSONTest{{
 	Name: "invalid prefix",
 	Data: fmt.Sprintf("%q", func() string {
 		adr, _ := NewFAAddress(FAAddressStr)
-		return adr.payload().StringPrefix([]byte{0x50, 0x50})
+		return adr.payload().StringWithPrefix([]byte{0x50, 0x50})
 	}()),
 	Err: "invalid prefix",
 }, {
@@ -159,7 +178,10 @@ func TestAddress(t *testing.T) {
 	fs, _ := NewFsAddress(FsAddressStr)
 	ec, _ := NewECAddress(ECAddressStr)
 	es, _ := NewEsAddress(EsAddressStr)
-	strToAdr := map[string]Address{FAAddressStr: fa, FsAddressStr: fs,
+	strToAdr := map[string]interface {
+		PrefixString() string
+		GetBalance(context.Context, *Client) (uint64, error)
+	}{FAAddressStr: fa, FsAddressStr: fs,
 		ECAddressStr: ec, EsAddressStr: es}
 	for adrStr, adr := range strToAdr {
 		t.Run("MarshalJSON/"+adr.PrefixString(), func(t *testing.T) {
@@ -168,85 +190,19 @@ func TestAddress(t *testing.T) {
 			assert.NoError(err)
 			assert.Equal(fmt.Sprintf("%q", adrStr), string(data))
 		})
-		t.Run("Payload/"+adr.PrefixString(), func(t *testing.T) {
-			assert.EqualValues(t, adr, adr.Payload())
-		})
 	}
 
 	t.Run("FsAddress", func(t *testing.T) {
-		pub, _ := NewFAAddress(FAAddressStr)
+		adr, _ := NewFAAddress(FAAddressStr)
 		priv, _ := NewFsAddress(FsAddressStr)
 		assert := assert.New(t)
-		assert.Equal(pub, priv.FAAddress())
-		assert.Equal(pub.PublicAddress(), priv.PublicAddress())
-		assert.Equal(pub.RCDHash(), priv.RCDHash(), "RCDHash")
+		assert.Equal(adr, priv.FAAddress())
 	})
 	t.Run("EsAddress", func(t *testing.T) {
-		pub, _ := NewECAddress(ECAddressStr)
+		adr, _ := NewECAddress(ECAddressStr)
 		priv, _ := NewEsAddress(EsAddressStr)
 		assert := assert.New(t)
-		assert.Equal(pub, priv.ECAddress())
-		assert.Equal(pub.PublicAddress(), priv.PublicAddress())
-	})
-
-	t.Run("New", func(t *testing.T) {
-		for _, adrStr := range []string{FAAddressStr, FsAddressStr,
-			ECAddressStr, EsAddressStr} {
-			t.Run(adrStr, func(t *testing.T) {
-				assert := assert.New(t)
-				adr, err := NewAddress(adrStr)
-				assert.NoError(err)
-				assert.Equal(adrStr, fmt.Sprintf("%v", adr))
-			})
-			t.Run("Public/"+adrStr, func(t *testing.T) {
-				assert := assert.New(t)
-				adr, err := NewPublicAddress(adrStr)
-				if adrStr[1] == 's' {
-					assert.EqualError(err, "invalid prefix")
-					return
-				}
-				assert.NoError(err)
-				assert.Equal(adrStr, fmt.Sprintf("%v", adr))
-			})
-			t.Run("Private/"+adrStr, func(t *testing.T) {
-				assert := assert.New(t)
-				adr, err := NewPrivateAddress(adrStr)
-				if adrStr[1] != 's' {
-					assert.EqualError(err, "invalid prefix")
-					return
-				}
-				assert.NoError(err)
-				assert.Equal(adrStr, fmt.Sprintf("%v", adr))
-			})
-		}
-
-		t.Run("invalid length", func(t *testing.T) {
-			assert := assert.New(t)
-
-			_, err := NewAddress("too short")
-			assert.EqualError(err, "invalid length")
-
-			_, err = NewPrivateAddress("too short")
-			assert.EqualError(err, "invalid length")
-
-			_, err = NewPublicAddress("too short")
-			assert.EqualError(err, "invalid length")
-		})
-
-		t.Run("unrecognized prefix", func(t *testing.T) {
-			adr, _ := NewFAAddress(FAAddressStr)
-			adrStr := adr.payload().StringPrefix([]byte{0x50, 0x50})
-			assert := assert.New(t)
-
-			_, err := NewAddress(adrStr)
-			assert.EqualError(err, "unrecognized prefix")
-
-			_, err = NewPrivateAddress(adrStr)
-			assert.EqualError(err, "unrecognized prefix")
-
-			_, err = NewPublicAddress(adrStr)
-			assert.EqualError(err, "unrecognized prefix")
-		})
+		assert.Equal(adr, priv.ECAddress())
 	})
 
 	t.Run("Generate/Fs", func(t *testing.T) {
@@ -262,76 +218,25 @@ func TestAddress(t *testing.T) {
 
 	c := NewClient()
 	t.Run("Save/Fs", func(t *testing.T) {
-		err := fs.Save(c)
+		err := fs.Save(nil, c)
 		assert.NoError(t, err)
 	})
 	t.Run("Save/Es", func(t *testing.T) {
-		err := es.Save(c)
+		err := es.Save(nil, c)
 		assert.NoError(t, err)
 	})
 
-	t.Run("GetPrivateAddress/Fs", func(t *testing.T) {
-		assert := assert.New(t)
-		_, err := fs.GetPrivateAddress(nil)
-		assert.NoError(err)
-
-		fa = fs.FAAddress()
-		newFs, err := fa.GetPrivateAddress(c)
-		assert.NoError(err)
-		assert.Equal(fs, newFs)
-	})
-	t.Run("GetPrivateAddress/Es", func(t *testing.T) {
-		assert := assert.New(t)
-		_, err := es.GetPrivateAddress(nil)
-		assert.NoError(err)
-
-		ec = es.ECAddress()
-		newEs, err := ec.GetPrivateAddress(c)
-		assert.NoError(err)
-		assert.Equal(es, newEs)
-		assert.Equal(ec.PublicKey(), es.PublicKey())
-	})
-
-	t.Run("GetAddresses", func(t *testing.T) {
-		adrs, err := c.GetAddresses()
-		assert := assert.New(t)
-		assert.NoError(err)
-		assert.NotEmpty(adrs)
-	})
 	t.Run("GetPrivateAddresses", func(t *testing.T) {
-		adrs, err := c.GetPrivateAddresses()
+		fss, ess, err := c.GetPrivateAddresses(nil)
 		assert := assert.New(t)
 		assert.NoError(err)
-		assert.NotEmpty(adrs)
-	})
-	t.Run("GetFAAddresses", func(t *testing.T) {
-		adrs, err := c.GetFAAddresses()
-		assert := assert.New(t)
-		assert.NoError(err)
-		assert.NotEmpty(adrs)
-	})
-	t.Run("GetFsAddresses", func(t *testing.T) {
-		adrs, err := c.GetFsAddresses()
-		assert := assert.New(t)
-		assert.NoError(err)
-		assert.NotEmpty(adrs)
-	})
-	t.Run("GetECAddresses", func(t *testing.T) {
-		adrs, err := c.GetECAddresses()
-		assert := assert.New(t)
-		assert.NoError(err)
-		assert.NotEmpty(adrs)
-	})
-	t.Run("GetEsAddresses", func(t *testing.T) {
-		adrs, err := c.GetEsAddresses()
-		assert := assert.New(t)
-		assert.NoError(err)
-		assert.NotEmpty(adrs)
+		assert.NotEmpty(fss)
+		assert.NotEmpty(ess)
 	})
 
 	for _, adr := range strToAdr {
 		t.Run("GetBalance/"+adr.PrefixString(), func(t *testing.T) {
-			balance, err := adr.GetBalance(c)
+			balance, err := adr.GetBalance(nil, c)
 			assert := assert.New(t)
 			assert.NoError(err)
 			assert.Equal(uint64(0), balance)
@@ -339,18 +244,18 @@ func TestAddress(t *testing.T) {
 	}
 	fundedEC, _ := NewECAddress("EC1zANmWuEMYoH6VizJg6uFaEdi8Excn1VbLN99KRuxh3GSvB7YQ")
 	t.Run("GetBalance/"+fundedEC.String(), func(t *testing.T) {
-		balance, err := fundedEC.GetBalance(c)
+		balance, err := fundedEC.GetBalance(nil, c)
 		assert := assert.New(t)
 		assert.NoError(err)
 		assert.NotEqual(uint64(0), balance)
 	})
 
 	t.Run("Remove/Fs", func(t *testing.T) {
-		err := fs.Remove(c)
+		err := fs.Remove(nil, c)
 		assert.NoError(t, err)
 	})
 	t.Run("Remove/Es", func(t *testing.T) {
-		err := es.Remove(c)
+		err := es.Remove(nil, c)
 		assert.NoError(t, err)
 	})
 }

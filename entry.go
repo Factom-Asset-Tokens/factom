@@ -23,6 +23,7 @@
 package factom
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
@@ -62,7 +63,7 @@ func (e Entry) IsPopulated() bool {
 //
 // After a successful call e.Content, e.ExtIDs, and e.ChainID will be
 // populated.
-func (e *Entry) Get(c *Client) error {
+func (e *Entry) Get(ctx context.Context, c *Client) error {
 	if e.IsPopulated() {
 		return nil
 	}
@@ -78,7 +79,7 @@ func (e *Entry) Get(c *Client) error {
 		Data Bytes `json:"data"`
 	}
 
-	if err := c.FactomdRequest("raw-data", params, &result); err != nil {
+	if err := c.FactomdRequest(ctx, "raw-data", params, &result); err != nil {
 		return err
 	}
 	return e.UnmarshalBinary(result.Data)
@@ -116,7 +117,7 @@ type commitResult struct {
 //
 // If successful, the commit transaction ID is returned and e.Hash and
 // e.ChainID will be populated.
-func (e *Entry) Create(c *Client, ec ECAddress) (Bytes32, error) {
+func (e *Entry) Create(ctx context.Context, c *Client, ec ECAddress) (Bytes32, error) {
 	var params interface{}
 	var method string
 
@@ -132,7 +133,7 @@ func (e *Entry) Create(c *Client, ec ECAddress) (Bytes32, error) {
 	}
 	result := composeResult{}
 
-	if err := c.WalletdRequest(method, params, &result); err != nil {
+	if err := c.WalletdRequest(ctx, method, params, &result); err != nil {
 		return Bytes32{}, err
 	}
 	if len(result.Commit.Method) == 0 {
@@ -140,12 +141,12 @@ func (e *Entry) Create(c *Client, ec ECAddress) (Bytes32, error) {
 	}
 
 	var commit commitResult
-	if err := c.FactomdRequest(
+	if err := c.FactomdRequest(ctx,
 		result.Commit.Method, result.Commit.Params, &commit); err != nil {
 		return Bytes32{}, err
 	}
 
-	if err := c.FactomdRequest(
+	if err := c.FactomdRequest(ctx,
 		result.Reveal.Method, result.Reveal.Params, e); err != nil {
 		return Bytes32{}, err
 	}
@@ -163,16 +164,16 @@ func (e *Entry) Create(c *Client, ec ECAddress) (Bytes32, error) {
 // populated.
 //
 // If successful, the Transaction ID is returned.
-func (e *Entry) ComposeCreate(c *Client, es EsAddress) (Bytes32, error) {
+func (e *Entry) ComposeCreate(ctx context.Context, c *Client, es EsAddress) (Bytes32, error) {
 	commit, reveal, txID, err := e.Compose(es)
 	if err != nil {
 		return Bytes32{}, err
 	}
 
-	if err := c.Commit(commit); err != nil {
+	if err := c.Commit(ctx, commit); err != nil {
 		return txID, err
 	}
-	if err := c.Reveal(reveal); err != nil {
+	if err := c.Reveal(ctx, reveal); err != nil {
 		return txID, err
 	}
 
@@ -180,7 +181,7 @@ func (e *Entry) ComposeCreate(c *Client, es EsAddress) (Bytes32, error) {
 }
 
 // Commit sends an entry or new chain commit to factomd.
-func (c *Client) Commit(commit []byte) error {
+func (c *Client) Commit(ctx context.Context, commit []byte) error {
 	var method string
 	switch len(commit) {
 	case commitLen:
@@ -195,18 +196,18 @@ func (c *Client) Commit(commit []byte) error {
 		Commit Bytes `json:"message"`
 	}{Commit: commit}
 
-	if err := c.FactomdRequest(method, params, nil); err != nil {
+	if err := c.FactomdRequest(ctx, method, params, nil); err != nil {
 		return err
 	}
 	return nil
 }
 
 // Reveal reveals an entry or new chain entry to factomd.
-func (c *Client) Reveal(reveal []byte) error {
+func (c *Client) Reveal(ctx context.Context, reveal []byte) error {
 	params := struct {
 		Reveal Bytes `json:"entry"`
 	}{Reveal: reveal}
-	if err := c.FactomdRequest("reveal-entry", params, nil); err != nil {
+	if err := c.FactomdRequest(ctx, "reveal-entry", params, nil); err != nil {
 		return err
 	}
 	return nil

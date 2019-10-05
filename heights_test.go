@@ -32,7 +32,7 @@ func TestHeights(t *testing.T) {
 	var h Heights
 	assert := assert.New(t)
 	c := NewClient()
-	err := h.Get(c)
+	err := h.Get(nil, c)
 	assert.NoError(err)
 	zero := uint32(0)
 	assert.NotEqual(zero, h.DirectoryBlock)

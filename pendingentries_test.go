@@ -46,7 +46,7 @@ func TestPendingEntries(t *testing.T) {
 	//c.Factomd.DebugRequest = true
 	assert := assert.New(t)
 	require := require.New(t)
-	require.NoError(pe.Get(c))
+	require.NoError(pe.Get(nil, c))
 
 	if len(pe) == 0 {
 		return

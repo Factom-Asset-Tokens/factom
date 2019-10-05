@@ -24,6 +24,7 @@ package factom
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"math"
@@ -74,14 +75,14 @@ func (eb EBlock) IsPopulated() bool {
 // eb.Timestamp, which is established by the DBlock with the same Height. All
 // eb.Entries will be populated with their Hash, ChainID, Timestamp, and
 // Height.
-func (eb *EBlock) Get(c *Client) error {
+func (eb *EBlock) Get(ctx context.Context, c *Client) error {
 	if eb.IsPopulated() {
 		return nil
 	}
 
 	// If we don't have a KeyMR, fetch the chain head KeyMR.
 	if eb.KeyMR == nil {
-		if err := eb.GetChainHead(c); err != nil {
+		if err := eb.GetChainHead(ctx, c); err != nil {
 			return err
 		}
 	}
@@ -93,7 +94,7 @@ func (eb *EBlock) Get(c *Client) error {
 		Data Bytes `json:"data"`
 	}
 
-	if err := c.FactomdRequest("raw-data", params, &result); err != nil {
+	if err := c.FactomdRequest(ctx, "raw-data", params, &result); err != nil {
 		return err
 	}
 	return eb.UnmarshalBinary(result.Data)
@@ -104,7 +105,7 @@ func (eb *EBlock) Get(c *Client) error {
 //
 // After a successful call, eb will be reset to its zero value with the
 // exception of eb.ChainID and eb.KeyMR.
-func (eb *EBlock) GetChainHead(c *Client) error {
+func (eb *EBlock) GetChainHead(ctx context.Context, c *Client) error {
 	if eb.ChainID == nil {
 		return fmt.Errorf("no ChainID specified")
 	}
@@ -117,7 +118,7 @@ func (eb *EBlock) GetChainHead(c *Client) error {
 		ChainInProcessList bool     `json:"chaininprocesslist"`
 	}
 
-	if err := c.FactomdRequest("chain-head", params, &result); err != nil {
+	if err := c.FactomdRequest(ctx, "chain-head", params, &result); err != nil {
 		return err
 	}
 	if result.KeyMR.IsZero() {
@@ -132,12 +133,12 @@ func (eb *EBlock) GetChainHead(c *Client) error {
 }
 
 // GetEntries calls eb.Get and then calls Get on each Entry in eb.Entries.
-func (eb *EBlock) GetEntries(c *Client) error {
-	if err := eb.Get(c); err != nil {
+func (eb *EBlock) GetEntries(ctx context.Context, c *Client) error {
+	if err := eb.Get(ctx, c); err != nil {
 		return err
 	}
 	for i := range eb.Entries {
-		if err := eb.Entries[i].Get(c); err != nil {
+		if err := eb.Entries[i].Get(ctx, c); err != nil {
 			return err
 		}
 	}
@@ -175,8 +176,8 @@ func (eb EBlock) Prev() EBlock {
 //
 // If you are only interested in obtaining the first entry block in eb's chain,
 // and not all of the intermediary ones, then use GetFirst.
-func (eb EBlock) GetPrevAll(c *Client) ([]EBlock, error) {
-	return eb.GetPrevUpTo(c, Bytes32{})
+func (eb EBlock) GetPrevAll(ctx context.Context, c *Client) ([]EBlock, error) {
+	return eb.GetPrevUpTo(ctx, c, Bytes32{})
 }
 
 // GetPrevUpTo returns a slice of all preceding EBlocks, in order from eb back
@@ -192,8 +193,10 @@ func (eb EBlock) GetPrevAll(c *Client) ([]EBlock, error) {
 //
 // If the beginning of the chain is reached without finding keyMR, then
 // fmt.Errorf("end of chain") is returned.
-func (eb EBlock) GetPrevUpTo(c *Client, keyMR Bytes32) ([]EBlock, error) {
-	if err := eb.Get(c); err != nil {
+func (eb EBlock) GetPrevUpTo(
+	ctx context.Context, c *Client, keyMR Bytes32) ([]EBlock, error) {
+
+	if err := eb.Get(ctx, c); err != nil {
 		return nil, err
 	}
 	if *eb.KeyMR == keyMR {
@@ -209,7 +212,7 @@ func (eb EBlock) GetPrevUpTo(c *Client, keyMR Bytes32) ([]EBlock, error) {
 			return nil, fmt.Errorf("end of chain")
 		}
 		e = e.Prev()
-		if err := e.Get(c); err != nil {
+		if err := e.Get(ctx, c); err != nil {
 			return nil, err
 		}
 		ebs = append(ebs, e)
@@ -221,9 +224,9 @@ func (eb EBlock) GetPrevUpTo(c *Client, keyMR Bytes32) ([]EBlock, error) {
 //
 // GetFirst avoids allocating any new EBlocks by reusing eb to traverse up to
 // the first entry block.
-func (eb *EBlock) GetFirst(c *Client) error {
+func (eb *EBlock) GetFirst(ctx context.Context, c *Client) error {
 	for ; !eb.IsFirst(); *eb = eb.Prev() {
-		if err := eb.Get(c); err != nil {
+		if err := eb.Get(ctx, c); err != nil {
 			return err
 		}
 	}

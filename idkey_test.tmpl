@@ -38,8 +38,8 @@ var (
 
 type idKeyUnmarshalJSONTest struct {
 	Name  string
-	ID    IDKey
-	ExpID IDKey
+	ID    interface{}
+	ExpID interface{}
 	Data  string
 	Err   string
 }
@@ -55,6 +55,21 @@ var idKeyUnmarshalJSONTests = []idKeyUnmarshalJSONTest{ {
 		return &id
 	}(),
 }, {
+	Name: "invalid type/ID{{.ID}}",
+	Data: `{}`,
+	Err:  "json: cannot unmarshal object into Go value of type *factom.ID{{.ID}}Key",
+        ID:   new(ID{{.ID}}Key),
+}, {
+	Name: "invalid type/ID{{.ID}}",
+	Data: `5.5`,
+	Err:  "json: cannot unmarshal number into Go value of type *factom.ID{{.ID}}Key",
+        ID:   new(ID{{.ID}}Key),
+}, {
+	Name: "invalid type/ID{{.ID}}",
+	Data: `["hello"]`,
+	Err:  "json: cannot unmarshal array into Go value of type *factom.ID{{.ID}}Key",
+        ID:   new(ID{{.ID}}Key),
+}, {
 {{ end }}
 {{ range . -}}
         Name: "valid/SK{{.ID}}",
@@ -65,19 +80,22 @@ var idKeyUnmarshalJSONTests = []idKeyUnmarshalJSONTest{ {
 		return &key
 	}(),
 }, {
-{{end}}
-	Name: "invalid type",
+	Name: "invalid type/SK{{.ID}}",
 	Data: `{}`,
-	Err:  "json: cannot unmarshal object into Go value of type string",
+	Err:  "json: cannot unmarshal object into Go value of type *factom.SK{{.ID}}Key",
+        ID:   new(SK{{.ID}}Key),
 }, {
-	Name: "invalid type",
+	Name: "invalid type/SK{{.ID}}",
 	Data: `5.5`,
-	Err:  "json: cannot unmarshal number into Go value of type string",
+	Err:  "json: cannot unmarshal number into Go value of type *factom.SK{{.ID}}Key",
+        ID:   new(SK{{.ID}}Key),
 }, {
-	Name: "invalid type",
+	Name: "invalid type/SK{{.ID}}",
 	Data: `["hello"]`,
-	Err:  "json: cannot unmarshal array into Go value of type string",
+	Err:  "json: cannot unmarshal array into Go value of type *factom.SK{{.ID}}Key",
+        ID:   new(SK{{.ID}}Key),
 }, {
+{{end}}
 	Name: "invalid length",
 	Data: fmt.Sprintf("%q", id1KeyStr[0:len(id1KeyStr)-1]),
 	Err:  "invalid length",
@@ -89,7 +107,7 @@ var idKeyUnmarshalJSONTests = []idKeyUnmarshalJSONTest{ {
 	Name: "invalid prefix",
 	Data: fmt.Sprintf("%q", func() string {
 		key, _ := NewSK1Key(sk1KeyStr)
-		return key.payload().StringPrefix([]byte{0x50, 0x50, 0x50})
+		return key.payload().StringWithPrefix([]byte{0x50, 0x50, 0x50})
 	}()),
 	Err: "invalid prefix",
 {{ range . -}}
@@ -155,7 +173,10 @@ func TestIDKey(t *testing.T) {
         id{{.ID}}, _ := NewID{{.ID}}Key(id{{.ID}}KeyStr)
 	sk{{.ID}}, _ := NewSK{{.ID}}Key(sk{{.ID}}KeyStr)
 {{end}}
-	strToKey := map[string]IDKey{
+	strToKey := map[string]interface{
+		PrefixString() string
+                String() string
+        }{
 {{range . -}}
                 id{{.ID}}KeyStr: id{{.ID}}, sk{{.ID}}KeyStr: sk{{.ID}},
 {{end}}
@@ -166,9 +187,6 @@ func TestIDKey(t *testing.T) {
 			assert := assert.New(t)
 			assert.NoError(err)
 			assert.Equal(fmt.Sprintf("%q", keyStr), string(data))
-		})
-		t.Run("Payload/"+key.PrefixString(), func(t *testing.T) {
-			assert.EqualValues(t, key, key.Payload())
 		})
 		t.Run("String/"+key.PrefixString(), func(t *testing.T) {
 			assert.Equal(t, keyStr, key.String())
@@ -181,8 +199,6 @@ func TestIDKey(t *testing.T) {
 		sk, _ := NewSK{{.ID}}Key(sk{{.ID}}KeyStr)
 		assert := assert.New(t)
                 assert.Equal(id, sk.ID{{.ID}}Key())
-		assert.Equal(id.IDKey(), sk.IDKey())
-		assert.Equal(SKKey(sk), sk.SKKey())
 		assert.Equal(id.RCDHash(), sk.RCDHash(), "RCDHash")
 	})
 {{end}}

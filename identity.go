@@ -22,7 +22,10 @@
 
 package factom
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 // ValidIdentityChainID returns true if the chainID matches the pattern for an
 // Identity Chain ID.
@@ -60,7 +63,7 @@ func ValidIdentityNameIDs(nameIDs []Bytes) bool {
 
 // Identity represents the Token Issuer's Identity Chain and the public ID1Key.
 type Identity struct {
-	ID1    ID1Key
+	ID1    *ID1Key
 	Height uint32
 	Entry
 }
@@ -73,11 +76,11 @@ func NewIdentity(chainID *Bytes32) (i Identity) {
 
 // IsPopulated returns true if the Identity has been populated with an ID1Key.
 func (i Identity) IsPopulated() bool {
-	return !Bytes32(i.ID1).IsZero()
+	return i.ID1 != nil && !(*Bytes32)(i.ID1).IsZero()
 }
 
 // Get validates i.ChainID as an Identity Chain and parses out the ID1Key.
-func (i *Identity) Get(c *Client) error {
+func (i *Identity) Get(ctx context.Context, c *Client) error {
 	if i.ChainID == nil {
 		return fmt.Errorf("ChainID is nil")
 	}
@@ -90,13 +93,13 @@ func (i *Identity) Get(c *Client) error {
 
 	// Get first entry block of Identity Chain.
 	eb := EBlock{ChainID: i.ChainID}
-	if err := eb.GetFirst(c); err != nil {
+	if err := eb.GetFirst(ctx, c); err != nil {
 		return err
 	}
 
 	// Get first entry of first entry block.
 	first := eb.Entries[0]
-	if err := first.Get(c); err != nil {
+	if err := first.Get(ctx, c); err != nil {
 		return err
 	}
 
@@ -106,6 +109,7 @@ func (i *Identity) Get(c *Client) error {
 
 	i.Height = eb.Height
 	i.Entry = first
+	i.ID1 = new(ID1Key)
 	copy(i.ID1[:], first.ExtIDs[2])
 
 	return nil

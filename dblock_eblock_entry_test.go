@@ -48,13 +48,13 @@ func TestDataStructures(t *testing.T) {
 
 		// A bad URL will cause an error.
 		c.FactomdServer = "http://example.com"
-		assert.Error(db.Get(c))
+		assert.Error(db.Get(nil, c))
 
 		c.FactomdServer = courtesyNode
-		require.NoError(db.Get(c))
+		require.NoError(db.Get(nil, c))
 
 		require.True(db.IsPopulated(), db)
-		assert.NoError(db.Get(c)) // Take the early exit code path.
+		assert.NoError(db.Get(nil, c)) // Take the early exit code path.
 
 		// Validate this DBlock.
 		assert.Len(db.EBlocks, 7)
@@ -65,7 +65,7 @@ func TestDataStructures(t *testing.T) {
 		}
 
 		dbk := DBlock{KeyMR: db.KeyMR, FullHash: db.FullHash}
-		require.NoError(dbk.Get(c))
+		require.NoError(dbk.Get(nil, c))
 		assert.Equal(db, dbk)
 
 		params := struct {
@@ -74,7 +74,7 @@ func TestDataStructures(t *testing.T) {
 		var result struct {
 			Data Bytes `json:"data"`
 		}
-		require.NoError(c.FactomdRequest("raw-data", params, &result))
+		require.NoError(c.FactomdRequest(nil, "raw-data", params, &result))
 
 		data, err := db.MarshalBinary()
 		require.NoError(err)
@@ -92,7 +92,7 @@ func TestDataStructures(t *testing.T) {
 
 		// An EBlock without a KeyMR or ChainID should cause an error.
 		blank := EBlock{}
-		assert.EqualError(blank.Get(c), "no ChainID specified")
+		assert.EqualError(blank.Get(nil, c), "no ChainID specified")
 
 		// We'll use the DBlock from the last test, so it must be
 		// populated to proceed.
@@ -108,13 +108,13 @@ func TestDataStructures(t *testing.T) {
 
 		// A bad URL will cause an error.
 		c.FactomdServer = "example.com"
-		assert.Error(eb.Get(c))
+		assert.Error(eb.Get(nil, c))
 
 		c.FactomdServer = courtesyNode
-		require.NoError(eb.Get(c))
+		require.NoError(eb.Get(nil, c))
 
 		require.True(eb.IsPopulated())
-		assert.NoError(eb.Get(c)) // Take the early exit code path.
+		assert.NoError(eb.Get(nil, c)) // Take the early exit code path.
 
 		// Validate the entries.
 		assert.Len(eb.Entries, 5)
@@ -130,11 +130,11 @@ func TestDataStructures(t *testing.T) {
 
 		// A bad URL will cause an error.
 		c.FactomdServer = "example.com"
-		_, err := eb.GetPrevAll(c)
+		_, err := eb.GetPrevAll(nil, c)
 		assert.Error(err)
 
 		c.FactomdServer = courtesyNode
-		ebs, err := eb.GetPrevAll(c)
+		ebs, err := eb.GetPrevAll(nil, c)
 		var first EBlock
 		if assert.NoError(err) {
 			assert.Len(ebs, 5)
@@ -149,24 +149,24 @@ func TestDataStructures(t *testing.T) {
 		// First use an invalid ChainID and an invalid URL.
 		eb2 := EBlock{ChainID: NewBytes32(nil)}
 		c.FactomdServer = "example.com"
-		assert.Error(eb2.Get(c))
-		assert.Error(eb2.GetFirst(c))
+		assert.Error(eb2.Get(nil, c))
+		assert.Error(eb2.GetFirst(nil, c))
 
 		c.FactomdServer = courtesyNode
-		require.Error(eb2.Get(c))
+		require.Error(eb2.Get(nil, c))
 		require.False(eb2.IsPopulated())
-		assert.EqualError(eb2.GetFirst(c),
+		assert.EqualError(eb2.GetFirst(nil, c),
 			`jsonrpc2.Error{Code:-32009, Message:"Missing Chain Head"}`)
-		ebs, err = eb2.GetPrevAll(c)
+		ebs, err = eb2.GetPrevAll(nil, c)
 		assert.EqualError(err,
 			`jsonrpc2.Error{Code:-32009, Message:"Missing Chain Head"}`)
 		assert.Nil(ebs)
 
 		// A valid ChainID should allow it to be populated.
 		eb2.ChainID = eb.ChainID
-		require.NoError(eb2.Get(c))
+		require.NoError(eb2.Get(nil, c))
 		require.True(eb2.IsPopulated())
-		assert.NoError(eb2.GetFirst(c))
+		assert.NoError(eb2.GetFirst(nil, c))
 		assert.Equal(first.KeyMR, eb2.KeyMR)
 
 		// Make RPC request for this Entry Block.
@@ -176,7 +176,7 @@ func TestDataStructures(t *testing.T) {
 		var result struct {
 			Data Bytes `json:"data"`
 		}
-		require.NoError(c.FactomdRequest("raw-data", params, &result))
+		require.NoError(c.FactomdRequest(nil, "raw-data", params, &result))
 		data, err := eb2.MarshalBinary()
 		require.NoError(err)
 		assert.Equal(result.Data, Bytes(data))
@@ -187,7 +187,7 @@ func TestDataStructures(t *testing.T) {
 
 		// An EBlock without a KeyMR or ChainID should cause an error.
 		blank := Entry{}
-		assert.EqualError(blank.Get(c), "Hash is nil")
+		assert.EqualError(blank.Get(nil, c), "Hash is nil")
 
 		// We'll use the DBlock and EBlock from the last test, so they
 		// must be populated to proceed.
@@ -201,13 +201,13 @@ func TestDataStructures(t *testing.T) {
 
 		// A bad URL will cause an error.
 		c.FactomdServer = "example.com"
-		assert.Error(e.Get(c))
+		assert.Error(e.Get(nil, c))
 
 		c.FactomdServer = courtesyNode
-		require.NoError(e.Get(c))
+		require.NoError(e.Get(nil, c))
 
 		require.True(e.IsPopulated())
-		assert.NoError(e.Get(c)) // Take the early exit code path.
+		assert.NoError(e.Get(nil, c)) // Take the early exit code path.
 
 		// Validate the entry.
 		assert.Len(e.ExtIDs, 6)

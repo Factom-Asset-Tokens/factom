@@ -23,9 +23,9 @@
 package factom
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	"fmt"
 
 	"crypto/ed25519"
 )
@@ -39,51 +39,6 @@ import (
 // addresses are a 32 byte payload encoded using base58check with various
 // prefixes.
 
-// Address is the interface implemented by the four address types: FAAddress,
-// FsAddress, ECAddress, and EsAddress.
-type Address interface {
-	// PrefixBytes returns the prefix bytes for the Address.
-	PrefixBytes() []byte
-	// PrefixString returns the encoded prefix string for the Address.
-	PrefixString() string
-
-	// String encodes the address to a base58check string with the
-	// appropriate prefix.
-	String() string
-	// Payload returns the address as a byte array.
-	Payload() [sha256.Size]byte
-
-	// PublicAddress returns the corresponding public address in an Address
-	// interface. Public addresses return themselves. Private addresses
-	// compute the public address.
-	PublicAddress() Address
-	// GetPrivateAddress returns the corresponding private address in a
-	// PrivateAddress interface. Public addresses query factom-walletd for
-	// the private address. Private addresses return themselves.
-	GetPrivateAddress(*Client) (PrivateAddress, error)
-
-	// GetBalance returns the current balance for the address.
-	GetBalance(*Client) (uint64, error)
-
-	// Remove queries factom-walletd to remove the public and private
-	// addresses from its database.
-	// WARNING: DESTRUCTIVE ACTION! LOSS OF KEYS AND FUNDS MAY RESULT!
-	Remove(*Client) error
-}
-
-// PrivateAddress is the interface implemented by the two private address
-// types: FsAddress, and EsAddress.
-type PrivateAddress interface {
-	Address
-
-	// PrivateKey returns the ed25519.PrivateKey which can be used for
-	// signing data.
-	PrivateKey() ed25519.PrivateKey
-	// PublicKey returns the ed25519.PublicKey which can be used for
-	// verifying signatures.
-	PublicKey() ed25519.PublicKey
-}
-
 // FAAddress is a Public Factoid Address.
 type FAAddress [sha256.Size]byte
 
@@ -96,59 +51,18 @@ type ECAddress [sha256.Size]byte
 // EsAddress is the secret key to a ECAddress.
 type EsAddress [sha256.Size]byte
 
-// Ensure that the Address and PrivateAddress interfaces are implemented.
-var _ Address = FAAddress{}
-var _ PrivateAddress = FsAddress{}
-var _ Address = ECAddress{}
-var _ PrivateAddress = EsAddress{}
-
-// Payload returns adr as a byte array.
-func (adr FAAddress) Payload() [sha256.Size]byte {
-	return adr
-}
-
-// Payload returns adr as a byte array.
-func (adr FsAddress) Payload() [sha256.Size]byte {
-	return adr
-}
-
-// Payload returns adr as a byte array.
-func (adr ECAddress) Payload() [sha256.Size]byte {
-	return adr
-}
-
-// Payload returns adr as a byte array.
-func (adr EsAddress) Payload() [sha256.Size]byte {
-	return adr
-}
-
-// payload returns adr as payload. This is syntactic sugar useful in other
-// methods that leverage payload.
-func (adr FAAddress) payload() payload {
-	return payload(adr)
-}
-func (adr FsAddress) payload() payload {
-	return payload(adr)
-}
-func (adr ECAddress) payload() payload {
-	return payload(adr)
-}
-func (adr EsAddress) payload() payload {
-	return payload(adr)
-}
-
 // payloadPtr returns adr as *payload. This is syntactic sugar useful in other
 // methods that leverage *payload.
-func (adr *FAAddress) payloadPtr() *payload {
+func (adr *FAAddress) payload() *payload {
 	return (*payload)(adr)
 }
-func (adr *FsAddress) payloadPtr() *payload {
+func (adr *FsAddress) payload() *payload {
 	return (*payload)(adr)
 }
-func (adr *ECAddress) payloadPtr() *payload {
+func (adr *ECAddress) payload() *payload {
 	return (*payload)(adr)
 }
-func (adr *EsAddress) payloadPtr() *payload {
+func (adr *EsAddress) payload() *payload {
 	return (*payload)(adr)
 }
 
@@ -160,33 +74,33 @@ var (
 )
 
 // PrefixBytes returns the two byte prefix for the address type as a byte
-// array. Note that the prefix for a given address type is always the same and
+// slice. Note that the prefix for a given address type is always the same and
 // does not depend on the address value. Returns []byte{0x5f, 0xb1}.
-func (FAAddress) PrefixBytes() []byte {
+func (FAAddress) PrefixBytes() Bytes {
 	prefix := faPrefixBytes
 	return prefix[:]
 }
 
 // PrefixBytes returns the two byte prefix for the address type as a byte
-// array. Note that the prefix for a given address type is always the same and
+// slice. Note that the prefix for a given address type is always the same and
 // does not depend on the address value. Returns []byte{0x64, 0x78}.
-func (FsAddress) PrefixBytes() []byte {
+func (FsAddress) PrefixBytes() Bytes {
 	prefix := fsPrefixBytes
 	return prefix[:]
 }
 
 // PrefixBytes returns the two byte prefix for the address type as a byte
-// array. Note that the prefix for a given address type is always the same and
+// slice. Note that the prefix for a given address type is always the same and
 // does not depend on the address value. Returns []byte{0x59, 0x2a}.
-func (ECAddress) PrefixBytes() []byte {
+func (ECAddress) PrefixBytes() Bytes {
 	prefix := ecPrefixBytes
 	return prefix[:]
 }
 
 // PrefixBytes returns the two byte prefix for the address type as a byte
-// array. Note that the prefix for a given address type is always the same and
+// slice. Note that the prefix for a given address type is always the same and
 // does not depend on the address value. Returns []byte{0x5d, 0xb6}.
-func (EsAddress) PrefixBytes() []byte {
+func (EsAddress) PrefixBytes() Bytes {
 	prefix := esPrefixBytes
 	return prefix[:]
 }
@@ -226,121 +140,51 @@ func (EsAddress) PrefixString() string {
 	return esPrefixStr
 }
 
-// String encodes adr into its human readable form: a base58check string with
+// String encodes adr into its human readable form: base58check with
 // adr.PrefixBytes().
 func (adr FAAddress) String() string {
-	return adr.payload().StringPrefix(adr.PrefixBytes())
+	return adr.payload().StringWithPrefix(adr.PrefixBytes())
 }
 
-// String encodes adr into its human readable form: a base58check string with
+// String encodes adr into its human readable form: base58check with
 // adr.PrefixBytes().
 func (adr FsAddress) String() string {
-	return adr.payload().StringPrefix(adr.PrefixBytes())
+	return adr.payload().StringWithPrefix(adr.PrefixBytes())
 }
 
-// String encodes adr into its human readable form: a base58check string with
+// String encodes adr into its human readable form: base58check with
 // adr.PrefixBytes().
 func (adr ECAddress) String() string {
-	return adr.payload().StringPrefix(adr.PrefixBytes())
+	return adr.payload().StringWithPrefix(adr.PrefixBytes())
 }
 
-// String encodes adr into its human readable form: a base58check string with
+// String encodes adr into its human readable form: base58check with
 // adr.PrefixBytes().
 func (adr EsAddress) String() string {
-	return adr.payload().StringPrefix(adr.PrefixBytes())
+	return adr.payload().StringWithPrefix(adr.PrefixBytes())
 }
 
-// MarshalJSON encodes adr as a JSON string using adr.String().
-func (adr FAAddress) MarshalJSON() ([]byte, error) {
-	return adr.payload().MarshalJSONPrefix(adr.PrefixBytes())
+// MarshalText encodes adr as a string using adr.String().
+func (adr FAAddress) MarshalText() ([]byte, error) {
+	return adr.payload().MarshalTextWithPrefix(adr.PrefixBytes())
 }
 
-// MarshalJSON encodes adr as a JSON string using adr.String().
-func (adr FsAddress) MarshalJSON() ([]byte, error) {
-	return adr.payload().MarshalJSONPrefix(adr.PrefixBytes())
+// MarshalText encodes adr as a string using adr.String().
+func (adr FsAddress) MarshalText() ([]byte, error) {
+	return adr.payload().MarshalTextWithPrefix(adr.PrefixBytes())
 }
 
-// MarshalJSON encodes adr as a JSON string using adr.String().
-func (adr ECAddress) MarshalJSON() ([]byte, error) {
-	return adr.payload().MarshalJSONPrefix(adr.PrefixBytes())
+// MarshalText encodes adr as a string using adr.String().
+func (adr ECAddress) MarshalText() ([]byte, error) {
+	return adr.payload().MarshalTextWithPrefix(adr.PrefixBytes())
 }
 
-// MarshalJSON encodes adr as a JSON string using adr.String().
-func (adr EsAddress) MarshalJSON() ([]byte, error) {
-	return adr.payload().MarshalJSONPrefix(adr.PrefixBytes())
+// MarshalText encodes adr as a string using adr.String().
+func (adr EsAddress) MarshalText() ([]byte, error) {
+	return adr.payload().MarshalTextWithPrefix(adr.PrefixBytes())
 }
 
 const adrStrLen = 52
-
-// NewAddress parses adrStr and returns the correct address type as an Address
-// interface. This is useful when the address type isn't known prior to parsing
-// adrStr. If the address type is known ahead of time, it is generally better
-// to just use the appropriate concrete type.
-func NewAddress(adrStr string) (Address, error) {
-	if len(adrStr) != adrStrLen {
-		return nil, fmt.Errorf("invalid length")
-	}
-	switch adrStr[:2] {
-	case FAAddress{}.PrefixString():
-		return NewFAAddress(adrStr)
-	case FsAddress{}.PrefixString():
-		return NewFsAddress(adrStr)
-	case ECAddress{}.PrefixString():
-		return NewECAddress(adrStr)
-	case EsAddress{}.PrefixString():
-		return NewEsAddress(adrStr)
-	default:
-		return nil, fmt.Errorf("unrecognized prefix")
-	}
-}
-
-// NewPublicAddress parses adrStr and returns the correct address type as an
-// Address interface. If adrStr is not a public address then an "invalid
-// prefix" error is returned. This is useful when the address type isn't known
-// prior to parsing adrStr, but must be a public address. If the address type
-// is known ahead of time, it is generally better to just use the appropriate
-// concrete type.
-func NewPublicAddress(adrStr string) (Address, error) {
-	if len(adrStr) != adrStrLen {
-		return nil, fmt.Errorf("invalid length")
-	}
-	switch adrStr[:2] {
-	case FAAddress{}.PrefixString():
-		return NewFAAddress(adrStr)
-	case ECAddress{}.PrefixString():
-		return NewECAddress(adrStr)
-	case FsAddress{}.PrefixString():
-		fallthrough
-	case EsAddress{}.PrefixString():
-		return nil, fmt.Errorf("invalid prefix")
-	default:
-		return nil, fmt.Errorf("unrecognized prefix")
-	}
-}
-
-// NewPrivateAddress parses adrStr and returns the correct address type as a
-// PrivateAddress interface. If adrStr is not a private address then an
-// "invalid prefix" error is returned. This is useful when the address type
-// isn't known prior to parsing adrStr, but must be a private address. If the
-// address type is known ahead of time, it is generally better to just use the
-// appropriate concrete type.
-func NewPrivateAddress(adrStr string) (PrivateAddress, error) {
-	if len(adrStr) != adrStrLen {
-		return nil, fmt.Errorf("invalid length")
-	}
-	switch adrStr[:2] {
-	case FsAddress{}.PrefixString():
-		return NewFsAddress(adrStr)
-	case EsAddress{}.PrefixString():
-		return NewEsAddress(adrStr)
-	case FAAddress{}.PrefixString():
-		fallthrough
-	case ECAddress{}.PrefixString():
-		return nil, fmt.Errorf("invalid prefix")
-	default:
-		return nil, fmt.Errorf("unrecognized prefix")
-	}
-}
 
 // GenerateFsAddress generates a secure random private Factoid address using
 // crypto/rand.Random as the source of randomness.
@@ -388,314 +232,186 @@ func NewEsAddress(adrStr string) (adr EsAddress, err error) {
 
 // Set attempts to parse adrStr into adr.
 func (adr *FAAddress) Set(adrStr string) error {
-	return adr.payloadPtr().SetPrefix(adrStr, adr.PrefixString())
+	return adr.payload().SetWithPrefix(adrStr, adr.PrefixString())
 }
 
 // Set attempts to parse adrStr into adr.
 func (adr *FsAddress) Set(adrStr string) error {
-	return adr.payloadPtr().SetPrefix(adrStr, adr.PrefixString())
+	return adr.payload().SetWithPrefix(adrStr, adr.PrefixString())
 }
 
 // Set attempts to parse adrStr into adr.
 func (adr *ECAddress) Set(adrStr string) error {
-	return adr.payloadPtr().SetPrefix(adrStr, adr.PrefixString())
+	return adr.payload().SetWithPrefix(adrStr, adr.PrefixString())
 }
 
 // Set attempts to parse adrStr into adr.
 func (adr *EsAddress) Set(adrStr string) error {
-	return adr.payloadPtr().SetPrefix(adrStr, adr.PrefixString())
+	return adr.payload().SetWithPrefix(adrStr, adr.PrefixString())
 }
 
-// UnmarshalJSON decodes a JSON string with a human readable public Factoid
+// UnmarshalText decodes a string with a human readable public Factoid address
+// into adr.
+func (adr *FAAddress) UnmarshalText(text []byte) error {
+	return adr.payload().UnmarshalTextWithPrefix(text, adr.PrefixString())
+}
+
+// UnmarshalText decodes a string with a human readable secret Factoid address
+// into adr.
+func (adr *FsAddress) UnmarshalText(text []byte) error {
+	return adr.payload().UnmarshalTextWithPrefix(text, adr.PrefixString())
+}
+
+// UnmarshalText decodes a string with a human readable public Entry Credit
 // address into adr.
-func (adr *FAAddress) UnmarshalJSON(data []byte) error {
-	return adr.payloadPtr().UnmarshalJSONPrefix(data, adr.PrefixString())
+func (adr *ECAddress) UnmarshalText(text []byte) error {
+	return adr.payload().UnmarshalTextWithPrefix(text, adr.PrefixString())
 }
 
-// UnmarshalJSON decodes a JSON string with a human readable secret Factoid
+// UnmarshalText decodes a string with a human readable secret Entry Credit
 // address into adr.
-func (adr *FsAddress) UnmarshalJSON(data []byte) error {
-	return adr.payloadPtr().UnmarshalJSONPrefix(data, adr.PrefixString())
-}
-
-// UnmarshalJSON decodes a JSON string with a human readable public Entry
-// Credit address into adr.
-func (adr *ECAddress) UnmarshalJSON(data []byte) error {
-	return adr.payloadPtr().UnmarshalJSONPrefix(data, adr.PrefixString())
-}
-
-// UnmarshalJSON decodes a JSON string with a human readable secret Entry
-// Credit address into adr.
-func (adr *EsAddress) UnmarshalJSON(data []byte) error {
-	return adr.payloadPtr().UnmarshalJSONPrefix(data, adr.PrefixString())
-}
-
-// GetPrivateAddress queries factom-walletd for the secret address
-// corresponding to adr and returns it as a PrivateAddress.
-func (adr FAAddress) GetPrivateAddress(c *Client) (PrivateAddress, error) {
-	return adr.GetFsAddress(c)
-}
-
-// GetPrivateAddress returns adr as a PrivateAddress.
-func (adr FsAddress) GetPrivateAddress(_ *Client) (PrivateAddress, error) {
-	return adr, nil
-}
-
-// GetPrivateAddress queries factom-walletd for the secret address
-// corresponding to adr and returns it as a PrivateAddress.
-func (adr ECAddress) GetPrivateAddress(c *Client) (PrivateAddress, error) {
-	return adr.GetEsAddress(c)
-}
-
-// GetPrivateAddress returns adr as a PrivateAddress.
-func (adr EsAddress) GetPrivateAddress(_ *Client) (PrivateAddress, error) {
-	return adr, nil
+func (adr *EsAddress) UnmarshalText(text []byte) error {
+	return adr.payload().UnmarshalTextWithPrefix(text, adr.PrefixString())
 }
 
 // GetFsAddress queries factom-walletd for the FsAddress corresponding to adr.
-func (adr FAAddress) GetFsAddress(c *Client) (FsAddress, error) {
+func (adr FAAddress) GetFsAddress(ctx context.Context, c *Client) (FsAddress, error) {
 	var privAdr FsAddress
-	err := c.GetAddress(adr, &privAdr)
+	err := c.getAddress(ctx, adr, &privAdr)
 	return privAdr, err
 }
 
 // GetEsAddress queries factom-walletd for the EsAddress corresponding to adr.
-func (adr ECAddress) GetEsAddress(c *Client) (EsAddress, error) {
+func (adr ECAddress) GetEsAddress(ctx context.Context, c *Client) (EsAddress, error) {
 	var privAdr EsAddress
-	err := c.GetAddress(adr, &privAdr)
+	err := c.getAddress(ctx, adr, &privAdr)
 	return privAdr, err
 }
 
-type walletAddress struct{ Address Address }
-
-// GetAddress queries factom-walletd for the privAdr corresponding to pubAdr.
-// If the returned error is nil, then privAdr is now populated. Note that
-// privAdr must be a pointer to a concrete type implementing PrivateAddress.
-func (c *Client) GetAddress(pubAdr Address, privAdr PrivateAddress) error {
-	params := walletAddress{Address: pubAdr}
-	result := struct{ Secret PrivateAddress }{Secret: privAdr}
-	if err := c.WalletdRequest("address", params, &result); err != nil {
+func (c *Client) getAddress(ctx context.Context, pubAdr, privAdr interface{}) error {
+	params := struct{ Address interface{} }{Address: pubAdr}
+	result := struct{ Secret interface{} }{Secret: privAdr}
+	if err := c.WalletdRequest(ctx, "address", params, &result); err != nil {
 		return err
 	}
 	return nil
-}
-
-type walletAddressPublic struct{ Public string }
-type walletAddressSecret struct{ Secret string }
-type walletAddressesPublic struct{ Addresses []walletAddressPublic }
-type walletAddressesSecret struct{ Addresses []walletAddressSecret }
-
-// GetAddresses queries factom-walletd for all public addresses.
-func (c *Client) GetAddresses() ([]Address, error) {
-	var result walletAddressesPublic
-	if err := c.WalletdRequest("all-addresses", nil, &result); err != nil {
-		return nil, err
-	}
-	addresses := make([]Address, 0, len(result.Addresses))
-	for _, adrStr := range result.Addresses {
-		adr, err := NewAddress(adrStr.Public)
-		if err != nil {
-			return nil, err
-		}
-		addresses = append(addresses, adr)
-	}
-	return addresses, nil
 }
 
 // GetPrivateAddresses queries factom-walletd for all private addresses.
-func (c *Client) GetPrivateAddresses() ([]PrivateAddress, error) {
-	var result walletAddressesSecret
-	if err := c.WalletdRequest("all-addresses", nil, &result); err != nil {
-		return nil, err
+func (c *Client) GetPrivateAddresses(ctx context.Context) ([]FsAddress, []EsAddress,
+	error) {
+	var result struct{ Addresses []struct{ Secret string } }
+	if err := c.WalletdRequest(ctx, "all-addresses", nil, &result); err != nil {
+		return nil, nil, err
 	}
-	addresses := make([]PrivateAddress, 0, len(result.Addresses))
-	for _, adrStr := range result.Addresses {
-		adr, err := NewPrivateAddress(adrStr.Secret)
-		if err != nil {
-			return nil, err
+	fss := make([]FsAddress, 0, len(result.Addresses))
+	ess := make([]EsAddress, 0, len(result.Addresses))
+	for _, adr := range result.Addresses {
+		adrStr := adr.Secret
+		switch adrStr[:2] {
+		case fsPrefixStr:
+			fs, err := NewFsAddress(adrStr)
+			if err != nil {
+				return nil, nil, err
+			}
+			fss = append(fss, fs)
+		case esPrefixStr:
+			es, err := NewEsAddress(adrStr)
+			if err != nil {
+				return nil, nil, err
+			}
+			ess = append(ess, es)
 		}
-		addresses = append(addresses, adr)
 	}
-	return addresses, nil
-}
-
-// GetFAAddresses queries factom-walletd for all public Factoid addresses.
-func (c *Client) GetFAAddresses() ([]FAAddress, error) {
-	var result walletAddressesPublic
-	if err := c.WalletdRequest("all-addresses", nil, &result); err != nil {
-		return nil, err
-	}
-	addresses := make([]FAAddress, 0, len(result.Addresses))
-	for _, adrStr := range result.Addresses {
-		adr, err := NewFAAddress(adrStr.Public)
-		if err != nil {
-			continue
-		}
-		addresses = append(addresses, adr)
-	}
-	return addresses, nil
-}
-
-// GetFsAddresses queries factom-walletd for all secret Factoid addresses.
-func (c *Client) GetFsAddresses() ([]FsAddress, error) {
-	var result walletAddressesSecret
-	if err := c.WalletdRequest("all-addresses", nil, &result); err != nil {
-		return nil, err
-	}
-	addresses := make([]FsAddress, 0, len(result.Addresses))
-	for _, adrStr := range result.Addresses {
-		adr, err := NewFsAddress(adrStr.Secret)
-		if err != nil {
-			continue
-		}
-		addresses = append(addresses, adr)
-	}
-	return addresses, nil
-}
-
-// GetECAddresses queries factom-walletd for all public Entry Credit addresses.
-func (c *Client) GetECAddresses() ([]ECAddress, error) {
-	var result walletAddressesPublic
-	if err := c.WalletdRequest("all-addresses", nil, &result); err != nil {
-		return nil, err
-	}
-	addresses := make([]ECAddress, 0, len(result.Addresses))
-	for _, adrStr := range result.Addresses {
-		adr, err := NewECAddress(adrStr.Public)
-		if err != nil {
-			continue
-		}
-		addresses = append(addresses, adr)
-	}
-	return addresses, nil
-}
-
-// GetEsAddresses queries factom-walletd for all secret Entry Credit addresses.
-func (c *Client) GetEsAddresses() ([]EsAddress, error) {
-	var result walletAddressesSecret
-	if err := c.WalletdRequest("all-addresses", nil, &result); err != nil {
-		return nil, err
-	}
-	addresses := make([]EsAddress, 0, len(result.Addresses))
-	for _, adrStr := range result.Addresses {
-		adr, err := NewEsAddress(adrStr.Secret)
-		if err != nil {
-			continue
-		}
-		addresses = append(addresses, adr)
-	}
-	return addresses, nil
+	return fss, ess, nil
 }
 
 // Save adr with factom-walletd.
-func (adr FsAddress) Save(c *Client) error {
-	return c.SavePrivateAddresses(adr)
+func (adr FsAddress) Save(ctx context.Context, c *Client) error {
+	return c.SavePrivateAddresses(ctx, adr.String())
 }
 
 // Save adr with factom-walletd.
-func (adr EsAddress) Save(c *Client) error {
-	return c.SavePrivateAddresses(adr)
+func (adr EsAddress) Save(ctx context.Context, c *Client) error {
+	return c.SavePrivateAddresses(ctx, adr.String())
 }
 
 // SavePrivateAddresses saves many adrs with factom-walletd.
-func (c *Client) SavePrivateAddresses(adrs ...PrivateAddress) error {
-	var params walletAddressesSecret
-	params.Addresses = make([]walletAddressSecret, len(adrs))
+func (c *Client) SavePrivateAddresses(ctx context.Context, adrs ...string) error {
+	var params struct{ Addresses []struct{ Secret string } }
+	params.Addresses = make([]struct{ Secret string }, len(adrs))
 	for i, adr := range adrs {
-		params.Addresses[i].Secret = adr.String()
+		params.Addresses[i].Secret = adr
 	}
-	if err := c.WalletdRequest("import-addresses", params, nil); err != nil {
+	if err := c.WalletdRequest(ctx, "import-addresses", params, nil); err != nil {
 		return err
 	}
 	return nil
 }
 
 // GetBalance queries factomd for the Factoid Balance for adr.
-func (adr FAAddress) GetBalance(c *Client) (uint64, error) {
-	return c.getBalance("factoid-balance", adr)
+func (adr FAAddress) GetBalance(ctx context.Context, c *Client) (uint64, error) {
+	return c.getBalance(ctx, "factoid-balance", adr.String())
 }
 
 // GetBalance queries factomd for the Factoid Balance for adr.
-func (adr FsAddress) GetBalance(c *Client) (uint64, error) {
-	return adr.PublicAddress().GetBalance(c)
+func (adr FsAddress) GetBalance(ctx context.Context, c *Client) (uint64, error) {
+	return adr.FAAddress().GetBalance(ctx, c)
 }
 
 // GetBalance queries factomd for the Entry Credit Balance for adr.
-func (adr ECAddress) GetBalance(c *Client) (uint64, error) {
-	return c.getBalance("entry-credit-balance", adr)
+func (adr ECAddress) GetBalance(ctx context.Context, c *Client) (uint64, error) {
+	return c.getBalance(ctx, "entry-credit-balance", adr.String())
 }
 
 // GetBalance queries factomd for the Entry Credit Balance for adr.
-func (adr EsAddress) GetBalance(c *Client) (uint64, error) {
-	return adr.PublicAddress().GetBalance(c)
+func (adr EsAddress) GetBalance(ctx context.Context, c *Client) (uint64, error) {
+	return adr.ECAddress().GetBalance(ctx, c)
 }
 
-type getBalanceParams struct {
-	Adr Address `json:"address"`
-}
-type balanceResult struct{ Balance uint64 }
-
-func (c *Client) getBalance(method string, adr Address) (uint64, error) {
-	var result balanceResult
-	params := getBalanceParams{Adr: adr}
-	if err := c.FactomdRequest(method, params, &result); err != nil {
+func (c *Client) getBalance(ctx context.Context, method, adrStr string) (uint64, error) {
+	params := struct {
+		Address string `json:"address"`
+	}{Address: adrStr}
+	var result struct{ Balance uint64 }
+	if err := c.FactomdRequest(ctx, method, params, &result); err != nil {
 		return 0, err
 	}
 	return result.Balance, nil
 }
 
 // Remove adr from factom-walletd. WARNING: THIS IS DESTRUCTIVE.
-func (adr FAAddress) Remove(c *Client) error {
-	return c.RemoveAddress(adr)
+func (adr FAAddress) Remove(ctx context.Context, c *Client) error {
+	return c.removeAddress(ctx, adr.String())
 }
 
 // Remove adr from factom-walletd. WARNING: THIS IS DESTRUCTIVE.
-func (adr FsAddress) Remove(c *Client) error {
-	return adr.PublicAddress().Remove(c)
+func (adr FsAddress) Remove(ctx context.Context, c *Client) error {
+	return adr.FAAddress().Remove(ctx, c)
 }
 
 // Remove adr from factom-walletd. WARNING: THIS IS DESTRUCTIVE.
-func (adr ECAddress) Remove(c *Client) error {
-	return c.RemoveAddress(adr)
+func (adr ECAddress) Remove(ctx context.Context, c *Client) error {
+	return c.removeAddress(ctx, adr.String())
 }
 
 // Remove adr from factom-walletd. WARNING: THIS IS DESTRUCTIVE.
-func (adr EsAddress) Remove(c *Client) error {
-	return adr.PublicAddress().Remove(c)
+func (adr EsAddress) Remove(ctx context.Context, c *Client) error {
+	return adr.ECAddress().Remove(ctx, c)
 }
 
-// RemoveAddress removes adr from factom-walletd. WARNING: THIS IS DESTRUCTIVE.
-func (c *Client) RemoveAddress(adr Address) error {
-	params := walletAddress{Address: adr.PublicAddress()}
-	if err := c.WalletdRequest("remove-address", params, nil); err != nil {
+// removeAddress removes adr from factom-walletd. WARNING: THIS IS DESTRUCTIVE.
+func (c *Client) removeAddress(ctx context.Context, adrStr string) error {
+	params := struct{ Address string }{Address: adrStr}
+	if err := c.WalletdRequest(ctx, "remove-address", params, nil); err != nil {
 		return err
 	}
 	return nil
 }
 
-// PublicAddress returns adr as an Address.
-func (adr FAAddress) PublicAddress() Address {
-	return adr
-}
-
-// PublicAddress returns the FAAddress corresponding to adr as an Address.
-func (adr FsAddress) PublicAddress() Address {
-	return adr.FAAddress()
-}
-
-// PublicAddress returns adr as an Address.
-func (adr ECAddress) PublicAddress() Address {
-	return adr
-}
-
-// PublicAddress returns the ECAddress corresponding to adr as an Address.
-func (adr EsAddress) PublicAddress() Address {
-	return adr.ECAddress()
-}
-
 // FAAddress returns the FAAddress corresponding to adr.
 func (adr FsAddress) FAAddress() FAAddress {
-	return adr.RCDHash()
+	return sha256d(adr.RCD())
 }
 
 // ECAddress returns the ECAddress corresponding to adr.
@@ -704,17 +420,7 @@ func (adr EsAddress) ECAddress() (ec ECAddress) {
 	return
 }
 
-// RCDHash returns the RCD hash encoded in adr.
-func (adr FAAddress) RCDHash() [sha256.Size]byte {
-	return adr
-}
-
-// RCDHash computes the RCD hash corresponding to adr.
-func (adr FsAddress) RCDHash() [sha256.Size]byte {
-	return sha256d(adr.RCD())
-}
-
-// sha256( sha256( data ) )
+// sha256(sha256(data))
 func sha256d(data []byte) [sha256.Size]byte {
 	hash := sha256.Sum256(data)
 	return sha256.Sum256(hash[:])

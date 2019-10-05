@@ -24,6 +24,7 @@ package factom
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"math"
@@ -81,7 +82,7 @@ func (db DBlock) IsPopulated() bool {
 // successful call, the EBlocks will all have their ChainID and KeyMR, but not
 // their Entries. Call Get on the EBlocks individually to populate their
 // Entries.
-func (db *DBlock) Get(c *Client) (err error) {
+func (db *DBlock) Get(ctx context.Context, c *Client) (err error) {
 	if db.IsPopulated() {
 		return nil
 	}
@@ -120,7 +121,7 @@ func (db *DBlock) Get(c *Client) (err error) {
 		})(&res)
 	}
 
-	if err := c.FactomdRequest(method, params, result); err != nil {
+	if err := c.FactomdRequest(ctx, method, params, result); err != nil {
 		return err
 	}
 	return db.UnmarshalBinary(res.Data)

@@ -24,7 +24,6 @@ package factom
 
 import (
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
 
 	"github.com/Factom-Asset-Tokens/base58"
@@ -33,20 +32,21 @@ import (
 // payload implements helper functions used by all Address and IDKey types.
 type payload [sha256.Size]byte
 
-// StringPrefix encodes payload as a base58check string with the given prefix.
-func (pld payload) StringPrefix(prefix []byte) string {
-	return base58.CheckEncode(pld[:], prefix...)
+// StringWithPrefix encodes payload as a base58check string with the given
+// prefix.
+func (p payload) StringWithPrefix(prefix []byte) string {
+	return base58.CheckEncode(p[:], prefix...)
 }
 
-// MarshalJSONPrefix encodes payload as a base58check JSON string with the
-// given prefix.
-func (pld payload) MarshalJSONPrefix(prefix []byte) ([]byte, error) {
-	return []byte(fmt.Sprintf("%q", pld.StringPrefix(prefix))), nil
+// MarshalTextWithPrefix encodes payload as a base58check string with the given
+// prefix.
+func (p payload) MarshalTextWithPrefix(prefix []byte) ([]byte, error) {
+	return []byte(p.StringWithPrefix(prefix)), nil
 }
 
-// SetPrefix attempts to parse adrStr into adr enforcing that adrStr
-// starts with prefix if prefix is not empty.
-func (pld *payload) SetPrefix(str, prefix string) error {
+// SetWithPrefix attempts to parse adrStr into adr enforcing that adrStr starts
+// with prefix, if not empty.
+func (p *payload) SetWithPrefix(str, prefix string) error {
 	if len(str) != 50+len(prefix) {
 		return fmt.Errorf("invalid length")
 	}
@@ -57,16 +57,12 @@ func (pld *payload) SetPrefix(str, prefix string) error {
 	if err != nil {
 		return err
 	}
-	copy(pld[:], b)
+	copy(p[:], b)
 	return nil
 }
 
-// UnmarshalJSONPrefix unmarshals a human readable address JSON string with the
+// UnmarshalTextWithPrefix unmarshals a human readable address string with the
 // given prefix.
-func (pld *payload) UnmarshalJSONPrefix(data []byte, prefix string) error {
-	var str string
-	if err := json.Unmarshal(data, &str); err != nil {
-		return err
-	}
-	return pld.SetPrefix(str, prefix)
+func (p *payload) UnmarshalTextWithPrefix(text []byte, prefix string) error {
+	return p.SetWithPrefix(string(text), prefix)
 }

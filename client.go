@@ -23,7 +23,9 @@
 package factom
 
 import (
+	"context"
 	"fmt"
+
 	"github.com/AdamSLevy/jsonrpc2/v12"
 )
 
@@ -57,19 +59,23 @@ func NewClient() *Client {
 }
 
 // FactomdRequest makes a request to factomd's v2 API.
-func (c *Client) FactomdRequest(method string, params, result interface{}) error {
+func (c *Client) FactomdRequest(
+	ctx context.Context, method string, params, result interface{}) error {
+
 	url := c.FactomdServer
 	if c.Factomd.DebugRequest {
 		fmt.Println("factomd:", url)
 	}
-	return c.Factomd.Request(url, method, params, result)
+	return c.Factomd.Request(ctx, url, method, params, result)
 }
 
 // WalletdRequest makes a request to factom-walletd's v2 API.
-func (c *Client) WalletdRequest(method string, params, result interface{}) error {
+func (c *Client) WalletdRequest(
+	ctx context.Context, method string, params, result interface{}) error {
+
 	url := c.WalletdServer
 	if c.Walletd.DebugRequest {
 		fmt.Println("factom-walletd:", url)
 	}
-	return c.Walletd.Request(url, method, params, result)
+	return c.Walletd.Request(ctx, url, method, params, result)
 }

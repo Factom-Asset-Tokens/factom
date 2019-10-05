@@ -22,6 +22,8 @@
 
 package factom
 
+import "context"
+
 // Heights contains all of the distinct heights for a factomd node and the
 // Factom network.
 type Heights struct {
@@ -46,8 +48,8 @@ type Heights struct {
 }
 
 // Get uses c to call the "heights" RPC method and populates h with the result.
-func (h *Heights) Get(c *Client) error {
-	if err := c.FactomdRequest("heights", nil, &h); err != nil {
+func (h *Heights) Get(ctx context.Context, c *Client) error {
+	if err := c.FactomdRequest(ctx, "heights", nil, &h); err != nil {
 		return err
 	}
 	return nil

@@ -55,18 +55,6 @@ const (
 	sk4PrefixStr = "sk4"
 )
 
-var (
-	_ IDKey = ID1Key{}
-	_ IDKey = ID2Key{}
-	_ IDKey = ID3Key{}
-	_ IDKey = ID4Key{}
-
-	_ SKKey = SK1Key{}
-	_ SKKey = SK2Key{}
-	_ SKKey = SK3Key{}
-	_ SKKey = SK4Key{}
-)
-
 // ID1Key is the id1 public key for an identity.
 type ID1Key [sha256.Size]byte
 
@@ -83,21 +71,12 @@ func (key SK1Key) Payload() [sha256.Size]byte {
 	return key
 }
 
-// payload returns adr as payload. This is syntactic sugar useful in other
-// methods that leverage payload.
-func (key ID1Key) payload() payload {
-	return payload(key)
-}
-func (key SK1Key) payload() payload {
-	return payload(key)
-}
-
-// payloadPtr returns adr as *payload. This is syntactic sugar useful in other
+// payload returns adr as *payload. This is syntactic sugar useful in other
 // methods that leverage *payload.
-func (key *ID1Key) payloadPtr() *payload {
+func (key *ID1Key) payload() *payload {
 	return (*payload)(key)
 }
-func (key *SK1Key) payloadPtr() *payload {
+func (key *SK1Key) payload() *payload {
 	return (*payload)(key)
 }
 
@@ -134,13 +113,13 @@ func (SK1Key) PrefixString() string {
 // String encodes key into its human readable form: a base58check string with
 // key.PrefixBytes().
 func (key ID1Key) String() string {
-	return key.payload().StringPrefix(key.PrefixBytes())
+	return key.payload().StringWithPrefix(key.PrefixBytes())
 }
 
 // String encodes key into its human readable form: a base58check string with
 // key.PrefixBytes().
 func (key SK1Key) String() string {
-	return key.payload().StringPrefix(key.PrefixBytes())
+	return key.payload().StringWithPrefix(key.PrefixBytes())
 }
 
 // Type returns PrefixString() satisfies the pflag.Value interface.
@@ -153,14 +132,14 @@ func (SK1Key) Type() string {
 	return sk1PrefixStr
 }
 
-// MarshalJSON encodes key as a JSON string using key.String().
-func (key ID1Key) MarshalJSON() ([]byte, error) {
-	return key.payload().MarshalJSONPrefix(key.PrefixBytes())
+// MarshalText encodes key as a string using key.String().
+func (key ID1Key) MarshalText() ([]byte, error) {
+	return key.payload().MarshalTextWithPrefix(key.PrefixBytes())
 }
 
-// MarshalJSON encodes key as a JSON string using key.String().
-func (key SK1Key) MarshalJSON() ([]byte, error) {
-	return key.payload().MarshalJSONPrefix(key.PrefixBytes())
+// MarshalText encodes key as a string using key.String().
+func (key SK1Key) MarshalText() ([]byte, error) {
+	return key.payload().MarshalTextWithPrefix(key.PrefixBytes())
 }
 
 // NewID1Key attempts to parse keyStr into a new ID1Key.
@@ -183,37 +162,22 @@ func GenerateSK1Key() (SK1Key, error) {
 
 // Set attempts to parse keyStr into key.
 func (key *ID1Key) Set(keyStr string) error {
-	return key.payloadPtr().SetPrefix(keyStr, key.PrefixString())
+	return key.payload().SetWithPrefix(keyStr, key.PrefixString())
 }
 
 // Set attempts to parse keyStr into key.
 func (key *SK1Key) Set(keyStr string) error {
-	return key.payloadPtr().SetPrefix(keyStr, key.PrefixString())
+	return key.payload().SetWithPrefix(keyStr, key.PrefixString())
 }
 
-// UnmarshalJSON decodes a JSON string with a human readable id1 key into key.
-func (key *ID1Key) UnmarshalJSON(data []byte) error {
-	return key.payloadPtr().UnmarshalJSONPrefix(data, key.PrefixString())
+// UnmarshalText decodes a string with a human readable id1 key into key.
+func (key *ID1Key) UnmarshalText(text []byte) error {
+	return key.payload().UnmarshalTextWithPrefix(text, key.PrefixString())
 }
 
-// UnmarshalJSON decodes a JSON string with a human readable sk1 key into key.
-func (key *SK1Key) UnmarshalJSON(data []byte) error {
-	return key.payloadPtr().UnmarshalJSONPrefix(data, key.PrefixString())
-}
-
-// IDKey returns key as an IDKey.
-func (key ID1Key) IDKey() IDKey {
-	return key
-}
-
-// IDKey returns the ID1Key corresponding to key as an IDKey.
-func (key SK1Key) IDKey() IDKey {
-	return key.ID1Key()
-}
-
-// SKKey returns key as an SKKey.
-func (key SK1Key) SKKey() SKKey {
-	return key
+// UnmarshalText decodes a string with a human readable sk1 key into key.
+func (key *SK1Key) UnmarshalText(text []byte) error {
+	return key.payload().UnmarshalTextWithPrefix(text, key.PrefixString())
 }
 
 // ID1Key computes the ID1Key corresponding to key.
@@ -262,21 +226,12 @@ func (key SK2Key) Payload() [sha256.Size]byte {
 	return key
 }
 
-// payload returns adr as payload. This is syntactic sugar useful in other
-// methods that leverage payload.
-func (key ID2Key) payload() payload {
-	return payload(key)
-}
-func (key SK2Key) payload() payload {
-	return payload(key)
-}
-
-// payloadPtr returns adr as *payload. This is syntactic sugar useful in other
+// payload returns adr as *payload. This is syntactic sugar useful in other
 // methods that leverage *payload.
-func (key *ID2Key) payloadPtr() *payload {
+func (key *ID2Key) payload() *payload {
 	return (*payload)(key)
 }
-func (key *SK2Key) payloadPtr() *payload {
+func (key *SK2Key) payload() *payload {
 	return (*payload)(key)
 }
 
@@ -313,13 +268,13 @@ func (SK2Key) PrefixString() string {
 // String encodes key into its human readable form: a base58check string with
 // key.PrefixBytes().
 func (key ID2Key) String() string {
-	return key.payload().StringPrefix(key.PrefixBytes())
+	return key.payload().StringWithPrefix(key.PrefixBytes())
 }
 
 // String encodes key into its human readable form: a base58check string with
 // key.PrefixBytes().
 func (key SK2Key) String() string {
-	return key.payload().StringPrefix(key.PrefixBytes())
+	return key.payload().StringWithPrefix(key.PrefixBytes())
 }
 
 // Type returns PrefixString() satisfies the pflag.Value interface.
@@ -332,14 +287,14 @@ func (SK2Key) Type() string {
 	return sk2PrefixStr
 }
 
-// MarshalJSON encodes key as a JSON string using key.String().
-func (key ID2Key) MarshalJSON() ([]byte, error) {
-	return key.payload().MarshalJSONPrefix(key.PrefixBytes())
+// MarshalText encodes key as a string using key.String().
+func (key ID2Key) MarshalText() ([]byte, error) {
+	return key.payload().MarshalTextWithPrefix(key.PrefixBytes())
 }
 
-// MarshalJSON encodes key as a JSON string using key.String().
-func (key SK2Key) MarshalJSON() ([]byte, error) {
-	return key.payload().MarshalJSONPrefix(key.PrefixBytes())
+// MarshalText encodes key as a string using key.String().
+func (key SK2Key) MarshalText() ([]byte, error) {
+	return key.payload().MarshalTextWithPrefix(key.PrefixBytes())
 }
 
 // NewID2Key attempts to parse keyStr into a new ID2Key.
@@ -362,37 +317,22 @@ func GenerateSK2Key() (SK2Key, error) {
 
 // Set attempts to parse keyStr into key.
 func (key *ID2Key) Set(keyStr string) error {
-	return key.payloadPtr().SetPrefix(keyStr, key.PrefixString())
+	return key.payload().SetWithPrefix(keyStr, key.PrefixString())
 }
 
 // Set attempts to parse keyStr into key.
 func (key *SK2Key) Set(keyStr string) error {
-	return key.payloadPtr().SetPrefix(keyStr, key.PrefixString())
+	return key.payload().SetWithPrefix(keyStr, key.PrefixString())
 }
 
-// UnmarshalJSON decodes a JSON string with a human readable id2 key into key.
-func (key *ID2Key) UnmarshalJSON(data []byte) error {
-	return key.payloadPtr().UnmarshalJSONPrefix(data, key.PrefixString())
+// UnmarshalText decodes a string with a human readable id2 key into key.
+func (key *ID2Key) UnmarshalText(text []byte) error {
+	return key.payload().UnmarshalTextWithPrefix(text, key.PrefixString())
 }
 
-// UnmarshalJSON decodes a JSON string with a human readable sk2 key into key.
-func (key *SK2Key) UnmarshalJSON(data []byte) error {
-	return key.payloadPtr().UnmarshalJSONPrefix(data, key.PrefixString())
-}
-
-// IDKey returns key as an IDKey.
-func (key ID2Key) IDKey() IDKey {
-	return key
-}
-
-// IDKey returns the ID2Key corresponding to key as an IDKey.
-func (key SK2Key) IDKey() IDKey {
-	return key.ID2Key()
-}
-
-// SKKey returns key as an SKKey.
-func (key SK2Key) SKKey() SKKey {
-	return key
+// UnmarshalText decodes a string with a human readable sk2 key into key.
+func (key *SK2Key) UnmarshalText(text []byte) error {
+	return key.payload().UnmarshalTextWithPrefix(text, key.PrefixString())
 }
 
 // ID2Key computes the ID2Key corresponding to key.
@@ -441,21 +381,12 @@ func (key SK3Key) Payload() [sha256.Size]byte {
 	return key
 }
 
-// payload returns adr as payload. This is syntactic sugar useful in other
-// methods that leverage payload.
-func (key ID3Key) payload() payload {
-	return payload(key)
-}
-func (key SK3Key) payload() payload {
-	return payload(key)
-}
-
-// payloadPtr returns adr as *payload. This is syntactic sugar useful in other
+// payload returns adr as *payload. This is syntactic sugar useful in other
 // methods that leverage *payload.
-func (key *ID3Key) payloadPtr() *payload {
+func (key *ID3Key) payload() *payload {
 	return (*payload)(key)
 }
-func (key *SK3Key) payloadPtr() *payload {
+func (key *SK3Key) payload() *payload {
 	return (*payload)(key)
 }
 
@@ -492,13 +423,13 @@ func (SK3Key) PrefixString() string {
 // String encodes key into its human readable form: a base58check string with
 // key.PrefixBytes().
 func (key ID3Key) String() string {
-	return key.payload().StringPrefix(key.PrefixBytes())
+	return key.payload().StringWithPrefix(key.PrefixBytes())
 }
 
 // String encodes key into its human readable form: a base58check string with
 // key.PrefixBytes().
 func (key SK3Key) String() string {
-	return key.payload().StringPrefix(key.PrefixBytes())
+	return key.payload().StringWithPrefix(key.PrefixBytes())
 }
 
 // Type returns PrefixString() satisfies the pflag.Value interface.
@@ -511,14 +442,14 @@ func (SK3Key) Type() string {
 	return sk3PrefixStr
 }
 
-// MarshalJSON encodes key as a JSON string using key.String().
-func (key ID3Key) MarshalJSON() ([]byte, error) {
-	return key.payload().MarshalJSONPrefix(key.PrefixBytes())
+// MarshalText encodes key as a string using key.String().
+func (key ID3Key) MarshalText() ([]byte, error) {
+	return key.payload().MarshalTextWithPrefix(key.PrefixBytes())
 }
 
-// MarshalJSON encodes key as a JSON string using key.String().
-func (key SK3Key) MarshalJSON() ([]byte, error) {
-	return key.payload().MarshalJSONPrefix(key.PrefixBytes())
+// MarshalText encodes key as a string using key.String().
+func (key SK3Key) MarshalText() ([]byte, error) {
+	return key.payload().MarshalTextWithPrefix(key.PrefixBytes())
 }
 
 // NewID3Key attempts to parse keyStr into a new ID3Key.
@@ -541,37 +472,22 @@ func GenerateSK3Key() (SK3Key, error) {
 
 // Set attempts to parse keyStr into key.
 func (key *ID3Key) Set(keyStr string) error {
-	return key.payloadPtr().SetPrefix(keyStr, key.PrefixString())
+	return key.payload().SetWithPrefix(keyStr, key.PrefixString())
 }
 
 // Set attempts to parse keyStr into key.
 func (key *SK3Key) Set(keyStr string) error {
-	return key.payloadPtr().SetPrefix(keyStr, key.PrefixString())
+	return key.payload().SetWithPrefix(keyStr, key.PrefixString())
 }
 
-// UnmarshalJSON decodes a JSON string with a human readable id3 key into key.
-func (key *ID3Key) UnmarshalJSON(data []byte) error {
-	return key.payloadPtr().UnmarshalJSONPrefix(data, key.PrefixString())
+// UnmarshalText decodes a string with a human readable id3 key into key.
+func (key *ID3Key) UnmarshalText(text []byte) error {
+	return key.payload().UnmarshalTextWithPrefix(text, key.PrefixString())
 }
 
-// UnmarshalJSON decodes a JSON string with a human readable sk3 key into key.
-func (key *SK3Key) UnmarshalJSON(data []byte) error {
-	return key.payloadPtr().UnmarshalJSONPrefix(data, key.PrefixString())
-}
-
-// IDKey returns key as an IDKey.
-func (key ID3Key) IDKey() IDKey {
-	return key
-}
-
-// IDKey returns the ID3Key corresponding to key as an IDKey.
-func (key SK3Key) IDKey() IDKey {
-	return key.ID3Key()
-}
-
-// SKKey returns key as an SKKey.
-func (key SK3Key) SKKey() SKKey {
-	return key
+// UnmarshalText decodes a string with a human readable sk3 key into key.
+func (key *SK3Key) UnmarshalText(text []byte) error {
+	return key.payload().UnmarshalTextWithPrefix(text, key.PrefixString())
 }
 
 // ID3Key computes the ID3Key corresponding to key.
@@ -620,21 +536,12 @@ func (key SK4Key) Payload() [sha256.Size]byte {
 	return key
 }
 
-// payload returns adr as payload. This is syntactic sugar useful in other
-// methods that leverage payload.
-func (key ID4Key) payload() payload {
-	return payload(key)
-}
-func (key SK4Key) payload() payload {
-	return payload(key)
-}
-
-// payloadPtr returns adr as *payload. This is syntactic sugar useful in other
+// payload returns adr as *payload. This is syntactic sugar useful in other
 // methods that leverage *payload.
-func (key *ID4Key) payloadPtr() *payload {
+func (key *ID4Key) payload() *payload {
 	return (*payload)(key)
 }
-func (key *SK4Key) payloadPtr() *payload {
+func (key *SK4Key) payload() *payload {
 	return (*payload)(key)
 }
 
@@ -671,13 +578,13 @@ func (SK4Key) PrefixString() string {
 // String encodes key into its human readable form: a base58check string with
 // key.PrefixBytes().
 func (key ID4Key) String() string {
-	return key.payload().StringPrefix(key.PrefixBytes())
+	return key.payload().StringWithPrefix(key.PrefixBytes())
 }
 
 // String encodes key into its human readable form: a base58check string with
 // key.PrefixBytes().
 func (key SK4Key) String() string {
-	return key.payload().StringPrefix(key.PrefixBytes())
+	return key.payload().StringWithPrefix(key.PrefixBytes())
 }
 
 // Type returns PrefixString() satisfies the pflag.Value interface.
@@ -690,14 +597,14 @@ func (SK4Key) Type() string {
 	return sk4PrefixStr
 }
 
-// MarshalJSON encodes key as a JSON string using key.String().
-func (key ID4Key) MarshalJSON() ([]byte, error) {
-	return key.payload().MarshalJSONPrefix(key.PrefixBytes())
+// MarshalText encodes key as a string using key.String().
+func (key ID4Key) MarshalText() ([]byte, error) {
+	return key.payload().MarshalTextWithPrefix(key.PrefixBytes())
 }
 
-// MarshalJSON encodes key as a JSON string using key.String().
-func (key SK4Key) MarshalJSON() ([]byte, error) {
-	return key.payload().MarshalJSONPrefix(key.PrefixBytes())
+// MarshalText encodes key as a string using key.String().
+func (key SK4Key) MarshalText() ([]byte, error) {
+	return key.payload().MarshalTextWithPrefix(key.PrefixBytes())
 }
 
 // NewID4Key attempts to parse keyStr into a new ID4Key.
@@ -720,37 +627,22 @@ func GenerateSK4Key() (SK4Key, error) {
 
 // Set attempts to parse keyStr into key.
 func (key *ID4Key) Set(keyStr string) error {
-	return key.payloadPtr().SetPrefix(keyStr, key.PrefixString())
+	return key.payload().SetWithPrefix(keyStr, key.PrefixString())
 }
 
 // Set attempts to parse keyStr into key.
 func (key *SK4Key) Set(keyStr string) error {
-	return key.payloadPtr().SetPrefix(keyStr, key.PrefixString())
+	return key.payload().SetWithPrefix(keyStr, key.PrefixString())
 }
 
-// UnmarshalJSON decodes a JSON string with a human readable id4 key into key.
-func (key *ID4Key) UnmarshalJSON(data []byte) error {
-	return key.payloadPtr().UnmarshalJSONPrefix(data, key.PrefixString())
+// UnmarshalText decodes a string with a human readable id4 key into key.
+func (key *ID4Key) UnmarshalText(text []byte) error {
+	return key.payload().UnmarshalTextWithPrefix(text, key.PrefixString())
 }
 
-// UnmarshalJSON decodes a JSON string with a human readable sk4 key into key.
-func (key *SK4Key) UnmarshalJSON(data []byte) error {
-	return key.payloadPtr().UnmarshalJSONPrefix(data, key.PrefixString())
-}
-
-// IDKey returns key as an IDKey.
-func (key ID4Key) IDKey() IDKey {
-	return key
-}
-
-// IDKey returns the ID4Key corresponding to key as an IDKey.
-func (key SK4Key) IDKey() IDKey {
-	return key.ID4Key()
-}
-
-// SKKey returns key as an SKKey.
-func (key SK4Key) SKKey() SKKey {
-	return key
+// UnmarshalText decodes a string with a human readable sk4 key into key.
+func (key *SK4Key) UnmarshalText(text []byte) error {
+	return key.payload().UnmarshalTextWithPrefix(text, key.PrefixString())
 }
 
 // ID4Key computes the ID4Key corresponding to key.

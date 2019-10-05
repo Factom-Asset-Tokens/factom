@@ -48,8 +48,8 @@ var (
 
 type idKeyUnmarshalJSONTest struct {
 	Name  string
-	ID    IDKey
-	ExpID IDKey
+	ID    interface{}
+	ExpID interface{}
 	Data  string
 	Err   string
 }
@@ -64,6 +64,21 @@ var idKeyUnmarshalJSONTests = []idKeyUnmarshalJSONTest{{
 		return &id
 	}(),
 }, {
+	Name: "invalid type/ID1",
+	Data: `{}`,
+	Err:  "json: cannot unmarshal object into Go value of type *factom.ID1Key",
+	ID:   new(ID1Key),
+}, {
+	Name: "invalid type/ID1",
+	Data: `5.5`,
+	Err:  "json: cannot unmarshal number into Go value of type *factom.ID1Key",
+	ID:   new(ID1Key),
+}, {
+	Name: "invalid type/ID1",
+	Data: `["hello"]`,
+	Err:  "json: cannot unmarshal array into Go value of type *factom.ID1Key",
+	ID:   new(ID1Key),
+}, {
 	Name: "valid/ID2",
 	Data: fmt.Sprintf("%q", id2KeyStr),
 	ID:   new(ID2Key),
@@ -72,6 +87,21 @@ var idKeyUnmarshalJSONTests = []idKeyUnmarshalJSONTest{{
 		id := sk.ID2Key()
 		return &id
 	}(),
+}, {
+	Name: "invalid type/ID2",
+	Data: `{}`,
+	Err:  "json: cannot unmarshal object into Go value of type *factom.ID2Key",
+	ID:   new(ID2Key),
+}, {
+	Name: "invalid type/ID2",
+	Data: `5.5`,
+	Err:  "json: cannot unmarshal number into Go value of type *factom.ID2Key",
+	ID:   new(ID2Key),
+}, {
+	Name: "invalid type/ID2",
+	Data: `["hello"]`,
+	Err:  "json: cannot unmarshal array into Go value of type *factom.ID2Key",
+	ID:   new(ID2Key),
 }, {
 	Name: "valid/ID3",
 	Data: fmt.Sprintf("%q", id3KeyStr),
@@ -82,6 +112,21 @@ var idKeyUnmarshalJSONTests = []idKeyUnmarshalJSONTest{{
 		return &id
 	}(),
 }, {
+	Name: "invalid type/ID3",
+	Data: `{}`,
+	Err:  "json: cannot unmarshal object into Go value of type *factom.ID3Key",
+	ID:   new(ID3Key),
+}, {
+	Name: "invalid type/ID3",
+	Data: `5.5`,
+	Err:  "json: cannot unmarshal number into Go value of type *factom.ID3Key",
+	ID:   new(ID3Key),
+}, {
+	Name: "invalid type/ID3",
+	Data: `["hello"]`,
+	Err:  "json: cannot unmarshal array into Go value of type *factom.ID3Key",
+	ID:   new(ID3Key),
+}, {
 	Name: "valid/ID4",
 	Data: fmt.Sprintf("%q", id4KeyStr),
 	ID:   new(ID4Key),
@@ -90,6 +135,21 @@ var idKeyUnmarshalJSONTests = []idKeyUnmarshalJSONTest{{
 		id := sk.ID4Key()
 		return &id
 	}(),
+}, {
+	Name: "invalid type/ID4",
+	Data: `{}`,
+	Err:  "json: cannot unmarshal object into Go value of type *factom.ID4Key",
+	ID:   new(ID4Key),
+}, {
+	Name: "invalid type/ID4",
+	Data: `5.5`,
+	Err:  "json: cannot unmarshal number into Go value of type *factom.ID4Key",
+	ID:   new(ID4Key),
+}, {
+	Name: "invalid type/ID4",
+	Data: `["hello"]`,
+	Err:  "json: cannot unmarshal array into Go value of type *factom.ID4Key",
+	ID:   new(ID4Key),
 }, {
 
 	Name: "valid/SK1",
@@ -100,6 +160,21 @@ var idKeyUnmarshalJSONTests = []idKeyUnmarshalJSONTest{{
 		return &key
 	}(),
 }, {
+	Name: "invalid type/SK1",
+	Data: `{}`,
+	Err:  "json: cannot unmarshal object into Go value of type *factom.SK1Key",
+	ID:   new(SK1Key),
+}, {
+	Name: "invalid type/SK1",
+	Data: `5.5`,
+	Err:  "json: cannot unmarshal number into Go value of type *factom.SK1Key",
+	ID:   new(SK1Key),
+}, {
+	Name: "invalid type/SK1",
+	Data: `["hello"]`,
+	Err:  "json: cannot unmarshal array into Go value of type *factom.SK1Key",
+	ID:   new(SK1Key),
+}, {
 	Name: "valid/SK2",
 	Data: fmt.Sprintf("%q", sk2KeyStr),
 	ID:   new(SK2Key),
@@ -107,6 +182,21 @@ var idKeyUnmarshalJSONTests = []idKeyUnmarshalJSONTest{{
 		key, _ := NewSK2Key(sk2KeyStr)
 		return &key
 	}(),
+}, {
+	Name: "invalid type/SK2",
+	Data: `{}`,
+	Err:  "json: cannot unmarshal object into Go value of type *factom.SK2Key",
+	ID:   new(SK2Key),
+}, {
+	Name: "invalid type/SK2",
+	Data: `5.5`,
+	Err:  "json: cannot unmarshal number into Go value of type *factom.SK2Key",
+	ID:   new(SK2Key),
+}, {
+	Name: "invalid type/SK2",
+	Data: `["hello"]`,
+	Err:  "json: cannot unmarshal array into Go value of type *factom.SK2Key",
+	ID:   new(SK2Key),
 }, {
 	Name: "valid/SK3",
 	Data: fmt.Sprintf("%q", sk3KeyStr),
@@ -116,6 +206,21 @@ var idKeyUnmarshalJSONTests = []idKeyUnmarshalJSONTest{{
 		return &key
 	}(),
 }, {
+	Name: "invalid type/SK3",
+	Data: `{}`,
+	Err:  "json: cannot unmarshal object into Go value of type *factom.SK3Key",
+	ID:   new(SK3Key),
+}, {
+	Name: "invalid type/SK3",
+	Data: `5.5`,
+	Err:  "json: cannot unmarshal number into Go value of type *factom.SK3Key",
+	ID:   new(SK3Key),
+}, {
+	Name: "invalid type/SK3",
+	Data: `["hello"]`,
+	Err:  "json: cannot unmarshal array into Go value of type *factom.SK3Key",
+	ID:   new(SK3Key),
+}, {
 	Name: "valid/SK4",
 	Data: fmt.Sprintf("%q", sk4KeyStr),
 	ID:   new(SK4Key),
@@ -124,19 +229,22 @@ var idKeyUnmarshalJSONTests = []idKeyUnmarshalJSONTest{{
 		return &key
 	}(),
 }, {
-
-	Name: "invalid type",
+	Name: "invalid type/SK4",
 	Data: `{}`,
-	Err:  "json: cannot unmarshal object into Go value of type string",
+	Err:  "json: cannot unmarshal object into Go value of type *factom.SK4Key",
+	ID:   new(SK4Key),
 }, {
-	Name: "invalid type",
+	Name: "invalid type/SK4",
 	Data: `5.5`,
-	Err:  "json: cannot unmarshal number into Go value of type string",
+	Err:  "json: cannot unmarshal number into Go value of type *factom.SK4Key",
+	ID:   new(SK4Key),
 }, {
-	Name: "invalid type",
+	Name: "invalid type/SK4",
 	Data: `["hello"]`,
-	Err:  "json: cannot unmarshal array into Go value of type string",
+	Err:  "json: cannot unmarshal array into Go value of type *factom.SK4Key",
+	ID:   new(SK4Key),
 }, {
+
 	Name: "invalid length",
 	Data: fmt.Sprintf("%q", id1KeyStr[0:len(id1KeyStr)-1]),
 	Err:  "invalid length",
@@ -148,7 +256,7 @@ var idKeyUnmarshalJSONTests = []idKeyUnmarshalJSONTest{{
 	Name: "invalid prefix",
 	Data: fmt.Sprintf("%q", func() string {
 		key, _ := NewSK1Key(sk1KeyStr)
-		return key.payload().StringPrefix([]byte{0x50, 0x50, 0x50})
+		return key.payload().StringWithPrefix([]byte{0x50, 0x50, 0x50})
 	}()),
 	Err: "invalid prefix",
 }, {
@@ -316,7 +424,10 @@ func TestIDKey(t *testing.T) {
 	id4, _ := NewID4Key(id4KeyStr)
 	sk4, _ := NewSK4Key(sk4KeyStr)
 
-	strToKey := map[string]IDKey{
+	strToKey := map[string]interface {
+		PrefixString() string
+		String() string
+	}{
 		id1KeyStr: id1, sk1KeyStr: sk1,
 		id2KeyStr: id2, sk2KeyStr: sk2,
 		id3KeyStr: id3, sk3KeyStr: sk3,
@@ -329,9 +440,6 @@ func TestIDKey(t *testing.T) {
 			assert.NoError(err)
 			assert.Equal(fmt.Sprintf("%q", keyStr), string(data))
 		})
-		t.Run("Payload/"+key.PrefixString(), func(t *testing.T) {
-			assert.EqualValues(t, key, key.Payload())
-		})
 		t.Run("String/"+key.PrefixString(), func(t *testing.T) {
 			assert.Equal(t, keyStr, key.String())
 		})
@@ -342,8 +450,6 @@ func TestIDKey(t *testing.T) {
 		sk, _ := NewSK1Key(sk1KeyStr)
 		assert := assert.New(t)
 		assert.Equal(id, sk.ID1Key())
-		assert.Equal(id.IDKey(), sk.IDKey())
-		assert.Equal(SKKey(sk), sk.SKKey())
 		assert.Equal(id.RCDHash(), sk.RCDHash(), "RCDHash")
 	})
 	t.Run("SKKey/SK2", func(t *testing.T) {
@@ -351,8 +457,6 @@ func TestIDKey(t *testing.T) {
 		sk, _ := NewSK2Key(sk2KeyStr)
 		assert := assert.New(t)
 		assert.Equal(id, sk.ID2Key())
-		assert.Equal(id.IDKey(), sk.IDKey())
-		assert.Equal(SKKey(sk), sk.SKKey())
 		assert.Equal(id.RCDHash(), sk.RCDHash(), "RCDHash")
 	})
 	t.Run("SKKey/SK3", func(t *testing.T) {
@@ -360,8 +464,6 @@ func TestIDKey(t *testing.T) {
 		sk, _ := NewSK3Key(sk3KeyStr)
 		assert := assert.New(t)
 		assert.Equal(id, sk.ID3Key())
-		assert.Equal(id.IDKey(), sk.IDKey())
-		assert.Equal(SKKey(sk), sk.SKKey())
 		assert.Equal(id.RCDHash(), sk.RCDHash(), "RCDHash")
 	})
 	t.Run("SKKey/SK4", func(t *testing.T) {
@@ -369,8 +471,6 @@ func TestIDKey(t *testing.T) {
 		sk, _ := NewSK4Key(sk4KeyStr)
 		assert := assert.New(t)
 		assert.Equal(id, sk.ID4Key())
-		assert.Equal(id.IDKey(), sk.IDKey())
-		assert.Equal(SKKey(sk), sk.SKKey())
 		assert.Equal(id.RCDHash(), sk.RCDHash(), "RCDHash")
 	})
 

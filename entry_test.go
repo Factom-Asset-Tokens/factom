@@ -133,14 +133,14 @@ func TestEntry(t *testing.T) {
 	chainID := ComputeChainID([]Bytes{Bytes(ec[:])})
 	t.Run("ComposeCreate", func(t *testing.T) {
 		c := NewClient()
-		es, err := ec.GetEsAddress(c)
+		es, err := ec.GetEsAddress(nil, c)
 		if _, ok := err.(jsonrpc2.Error); ok {
 			// Skip if the EC address is not in the wallet.
 			t.SkipNow()
 		}
 		assert := assert.New(t)
 		assert.NoError(err)
-		balance, err := ec.GetBalance(c)
+		balance, err := ec.GetBalance(nil, c)
 		assert.NoError(err)
 		if balance == 0 {
 			// Skip if the EC address is not funded.
@@ -152,7 +152,7 @@ func TestEntry(t *testing.T) {
 		e := Entry{Content: Bytes(randData[:]),
 			ExtIDs:  []Bytes{Bytes(ec[:])},
 			ChainID: &chainID}
-		tx, err := e.ComposeCreate(c, es)
+		tx, err := e.ComposeCreate(nil, c, es)
 		assert.NoError(err)
 		assert.NotNil(tx)
 		assert.NotNil(e.Hash)
@@ -164,7 +164,7 @@ func TestEntry(t *testing.T) {
 		e.ChainID = nil
 		e.Content = Bytes(randData[:])
 		e.ExtIDs = []Bytes{Bytes(randData[:])}
-		tx, err = e.ComposeCreate(c, es)
+		tx, err = e.ComposeCreate(nil, c, es)
 		assert.NoError(err)
 		assert.NotNil(tx)
 		assert.NotNil(e.Hash)
@@ -177,7 +177,7 @@ func TestEntry(t *testing.T) {
 		c := NewClient()
 		c.Factomd.DebugRequest = true
 		c.Walletd.DebugRequest = true
-		balance, err := ec.GetBalance(c)
+		balance, err := ec.GetBalance(nil, c)
 		assert := assert.New(t)
 		require := require.New(t)
 		require.NoError(err)
@@ -191,7 +191,7 @@ func TestEntry(t *testing.T) {
 		e := Entry{Content: Bytes(randData[:]),
 			ExtIDs:  []Bytes{Bytes(ec[:])},
 			ChainID: &chainID}
-		tx, err := e.Create(c, ec)
+		tx, err := e.Create(nil, c, ec)
 		assert.NoError(err)
 		assert.NotNil(tx)
 		assert.NotNil(e.Hash)
@@ -202,7 +202,7 @@ func TestEntry(t *testing.T) {
 		e.ChainID = nil
 		e.Content = Bytes(randData[:])
 		e.ExtIDs = []Bytes{Bytes(randData[:])}
-		tx, err = e.Create(c, ec)
+		tx, err = e.Create(nil, c, ec)
 		assert.NoError(err)
 		assert.NotNil(tx)
 		assert.NotNil(e.Hash)
@@ -223,8 +223,11 @@ func TestEntry(t *testing.T) {
 		assert := assert.New(t)
 		_, err := EntryCost(11000, false)
 		assert.EqualError(err, "Entry cannot be larger than 10KB")
-		cost, _ := EntryCost(0, false)
-		assert.Equal(uint8(1), cost)
+		_, err = EntryCost(0, false)
+		assert.EqualError(err, "invalid size")
+		cost, err := EntryCost(1200, false)
+		require.NoError(t, err)
+		assert.Equal(uint8(2), cost)
 	})
 }
 

@@ -1,7 +1,7 @@
 github.com/AdamSLevy/go-merkle v0.0.0-20190611101253-ca33344a884d h1:FWutTJGVqBnL4rLgeNaspUYnmnvkXcmDA3QO3rHBGgU=
 github.com/AdamSLevy/go-merkle v0.0.0-20190611101253-ca33344a884d/go.mod h1:Nw3sh5L40Xs1wno7ndbD/dYWg+vARpBvpX9Zz1YSxbo=
-github.com/AdamSLevy/jsonrpc2/v12 v12.0.2-0.20190929214639-94306464b409 h1:s7+6wUZJvorkJWm6Eyifm4NDbmqGqJfFsZvtz416L2A=
-github.com/AdamSLevy/jsonrpc2/v12 v12.0.2-0.20190929214639-94306464b409/go.mod h1:UUmIu8A7Sjw+yI0tIc/iGQHoSu/7loifZ7E/AbjFFcI=
+github.com/AdamSLevy/jsonrpc2/v12 v12.0.2-0.20191005213732-3b0dfc9c5f77 h1:+UJmKY1f0AITEyfhLaH9zpqIwLgVIKLE+BBCY2B2gys=
+github.com/AdamSLevy/jsonrpc2/v12 v12.0.2-0.20191005213732-3b0dfc9c5f77/go.mod h1:UUmIu8A7Sjw+yI0tIc/iGQHoSu/7loifZ7E/AbjFFcI=
 github.com/Factom-Asset-Tokens/base58 v0.0.0-20181227014902-61655c4dd885 h1:rfy2fwMrOZPqQgjsH7VCreGMSPzcvqQrfjeSs8nf+sY=
 github.com/Factom-Asset-Tokens/base58 v0.0.0-20181227014902-61655c4dd885/go.mod h1:RVXsRSp6VzXw5l1uiGazuf3qo23Qk0h1HzMcQk+X4LE=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

@@ -24,6 +24,7 @@ package factom
 
 import (
 	"bytes"
+	"context"
 	"sort"
 )
 
@@ -35,8 +36,8 @@ type PendingEntries []Entry
 // Get returns all pending entries sorted by descending ChainID, and then order
 // they were originally returned. Pending Entries that are committed but not
 // revealed have a nil ChainID and are at the end of the pe slice.
-func (pe *PendingEntries) Get(c *Client) error {
-	if err := c.FactomdRequest("pending-entries", nil, pe); err != nil {
+func (pe *PendingEntries) Get(ctx context.Context, c *Client) error {
+	if err := c.FactomdRequest(ctx, "pending-entries", nil, pe); err != nil {
 		return err
 	}
 	sort.SliceStable(*pe, func(i, j int) bool {
