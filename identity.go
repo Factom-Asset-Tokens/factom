@@ -130,6 +130,7 @@ func (i *Identity) UnmarshalBinary(data []byte) error {
 	if *i.ChainID != ComputeChainID(i.ExtIDs) {
 		return fmt.Errorf("invalid ExtIDs: Chain ID mismatch")
 	}
+	i.ID1 = new(ID1Key)
 	copy(i.ID1[:], i.ExtIDs[2])
 	return nil
 }
