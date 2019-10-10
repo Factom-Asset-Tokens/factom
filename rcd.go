@@ -8,9 +8,9 @@ import (
 	"github.com/Factom-Asset-Tokens/factom/varintf"
 )
 
-// RCD is the underlying structure behind a factoid address. A factoid address is a sha256d(RCD).
-// The most common and basic RCD type, is type 1. That being just a single public key that uses a single
-// 64 byte signature block.
+// RCD is the underlying structure behind a factoid address. A factoid address
+// is a sha256d(RCD). The most common and basic RCD type, is type 1. That
+// being just a single public key that uses a single 64 byte signature block.
 type RCD interface {
 	// Type is varint encoded, but typically only uses 1 byte
 	Type() uint64
@@ -34,24 +34,13 @@ type RCD interface {
 // The details underlying format of the data can be seen on the UnmarshalBinary
 // functions of the RCD types.
 func DecodeRCD(data []byte) (reedemCondition RCD, read int, err error) {
-	// TODO: The varintf decode function can panic
-	//		until that is fixed, the only way to proctect the call is
-	// 		to panic recover
-	defer func() {
-		// TODO: Remove this recover if the varintf ever gets a protected call
-		//		that will prevent panics and instead hand out an error.
-		if r := recover(); r != nil {
-			err = fmt.Errorf("failed to decode")
-		}
-	}()
-
 	// Min 1 bytes for a varint of 1 byte
 	if len(data) < 1 {
 		return nil, 0, fmt.Errorf("insufficient length")
 	}
 
 	version, r := varintf.Decode(data)
-	if r == -1 {
+	if r < 0 {
 		return nil, 0, fmt.Errorf("invalid varint")
 	}
 	switch version {
@@ -92,8 +81,6 @@ func (r RCD1) Address() (FAAddress, error) {
 }
 
 func (r RCD1) Validate(msg Bytes, signature Bytes) bool {
-	// TODO: This library might not be doing cannonical ed25519 signature checking
-	//		to ensure all signatures are on the correct side of the curve
 	return ed25519.Verify(r[:], msg, signature)
 }
 

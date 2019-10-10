@@ -206,7 +206,7 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 
 	// TODO: Body
 	fb.Transactions = make([]*FactoidTransaction, fb.Header.TransactionCount)
-	period := 0
+	var period int
 	for c := range fb.Transactions {
 		// Before each fct tx, we need to see if there is a marker byte that indicates a minute marker
 		for data[i] == FBlockMinuteMarker {
@@ -261,7 +261,7 @@ func (fb *FBlock) MarshalBinary() ([]byte, error) {
 	var i int
 	i += copy(data[i:], header)
 
-	period := 0
+	var period int
 	for c, transaction := range fb.Transactions {
 		for period < len(fb.endOfPeriod) && // If minute marked remain to be written
 			fb.endOfPeriod[period] > 0 && // If the period markers are actually set (ignore otherwise)
@@ -389,8 +389,8 @@ func (fb FBlock) computeBodyMR(ledger bool) (Bytes32, error) {
 
 	// Transactions + minute markers are included
 	leaves := make([][]byte, len(fb.Transactions)+len(fb.endOfPeriod))
-	period := 0
-	c := 0
+	var period int
+	var c int
 	for i, trans := range fb.Transactions {
 		for period < len(fb.endOfPeriod) && i != 0 && i == fb.endOfPeriod[period] {
 			period++
