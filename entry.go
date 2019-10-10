@@ -167,14 +167,14 @@ func (e *Entry) Create(ctx context.Context, c *Client, ec ECAddress) (Bytes32, e
 func (e *Entry) ComposeCreate(ctx context.Context, c *Client, es EsAddress) (Bytes32, error) {
 	commit, reveal, txID, err := e.Compose(es)
 	if err != nil {
-		return Bytes32{}, err
+		return Bytes32{}, fmt.Errorf("factom.Entry.Compose(): %w", err)
 	}
 
 	if err := c.Commit(ctx, commit); err != nil {
-		return txID, err
+		return txID, fmt.Errorf("factom.Client.Commit(): %w", err)
 	}
 	if err := c.Reveal(ctx, reveal); err != nil {
-		return txID, err
+		return txID, fmt.Errorf("factom.Client.Reveal(): %w", err)
 	}
 
 	return txID, nil
@@ -189,7 +189,7 @@ func (c *Client) Commit(ctx context.Context, commit []byte) error {
 	case chainCommitLen:
 		method = "commit-chain"
 	default:
-		return fmt.Errorf("invalid length")
+		return fmt.Errorf("invalid commit length")
 	}
 
 	params := struct {
@@ -237,6 +237,7 @@ func (e *Entry) Compose(es EsAddress) (
 
 	reveal, err = e.MarshalBinary()
 	if err != nil {
+		err = fmt.Errorf("factom.Entry.MarshalBinary(): %w", err)
 		return
 	}
 
