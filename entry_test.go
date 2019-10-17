@@ -35,13 +35,15 @@ import (
 
 var marshalBinaryTests = []struct {
 	Name string
-	Hash *Bytes32
 	Entry
 }{{
 	Name: "valid",
 	Entry: Entry{
-		Hash: NewBytes32(hexToBytes(
-			"72177d733dcd0492066b79c5f3e417aef7f22909674f7dc351ca13b04742bb91")),
+		Hash: func() *Bytes32 {
+			b := NewBytes32(
+				"72177d733dcd0492066b79c5f3e417aef7f22909674f7dc351ca13b04742bb91")
+			return &b
+		}(),
 		ChainID: func() *Bytes32 {
 			c := ComputeChainID([]Bytes{Bytes("test")})
 			return &c
@@ -74,8 +76,11 @@ var unmarshalBinaryTests = []struct {
 	Name: "valid",
 	Data: hexToBytes(
 		"009005bb7dd69fb9910ee0b0db7b8a01198f03623eab6dadf1eba01f9dbc20757700530009436861696e54797065001253494e474c455f50524f4f465f434841494e000448617368002c4a74446f413157476a784f63584a67496365574e6336396a5551524867506835414e337848646b6a7158303d48796742426b32317a79384c576e5a56785a48526c38706b502f366e34377546317664324a4378654238593d"),
-	Hash: NewBytes32(hexToBytes(
-		"a5e49c1c14762f067b4132c5aa3abf03efdf2569de5d68a3f7cd539577f54942")),
+	Hash: func() *Bytes32 {
+		b := NewBytes32(
+			"a5e49c1c14762f067b4132c5aa3abf03efdf2569de5d68a3f7cd539577f54942")
+		return &b
+	}(),
 }, {
 	Name: "invalid (too short)",
 	Data: hexToBytes(
@@ -217,7 +222,7 @@ func TestEntry(t *testing.T) {
 			ExtIDs:  []Bytes{Bytes(ec[:])},
 			ChainID: &chainID}
 		_, _, _, err := e.Compose(EsAddress(ec))
-		assert.EqualError(err, "length exceeds 10275")
+		assert.EqualError(err, "factom.Entry.MarshalBinary(): length exceeds 10275")
 	})
 	t.Run("EntryCost", func(t *testing.T) {
 		assert := assert.New(t)

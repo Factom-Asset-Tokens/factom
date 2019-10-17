@@ -32,7 +32,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var searchID = NewBytes32FromString(
+var searchID = NewBytes32(
 	"b0bb9c3e14514d7109b18b8edf3875618bac0881935e20a14b69d81fdc39e624")
 
 // TestPendingEntries is not a stable test. It depends on the current pending
@@ -79,12 +79,12 @@ func TestPendingEntries(t *testing.T) {
 		}
 	}
 
-	es = pe.Entries(searchID)
+	es = pe.Entries(&searchID)
 	if len(es) == 0 {
 		return
 	}
 	fmt.Printf("es: %+v\n", es)
 	for _, e := range es {
-		assert.Equal(*e.ChainID, *searchID)
+		assert.Equal(*e.ChainID, searchID)
 	}
 }

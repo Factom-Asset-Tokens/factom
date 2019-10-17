@@ -68,12 +68,6 @@ type Identity struct {
 	Entry
 }
 
-// NewIdentity initializes an Identity with the given chainID.
-func NewIdentity(chainID *Bytes32) (i Identity) {
-	i.ChainID = chainID
-	return
-}
-
 // IsPopulated returns true if the Identity has been populated with an ID1Key.
 func (i Identity) IsPopulated() bool {
 	return i.ID1 != nil && !(*Bytes32)(i.ID1).IsZero()

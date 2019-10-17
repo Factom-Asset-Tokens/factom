@@ -36,25 +36,17 @@ type Bytes32 [32]byte
 // encode and decode hex strings, such as an Entry's ExtIDs or Content.
 type Bytes []byte
 
-// NewBytes32 allocates a new Bytes32 object with the first 32 bytes of data
-// contained in s32.
-func NewBytes32(s32 []byte) *Bytes32 {
-	b32 := new(Bytes32)
-	copy(b32[:], s32)
-	return b32
-}
-
-// NewBytes32FromString allocates a new Bytes32 object with the hex string data
-// contained in s32.
-func NewBytes32FromString(s32 string) *Bytes32 {
-	b32 := new(Bytes32)
+// NewBytes32 returns a Bytes32 populated with the data from s32, a hex encoded
+// string.
+func NewBytes32(s32 string) Bytes32 {
+	var b32 Bytes32
 	b32.Set(s32)
 	return b32
 }
 
-// NewBytesFromString makes a new Bytes object with the hex string data
-// contained in s.
-func NewBytesFromString(s string) Bytes {
+// NewBytes returns a Bytes populated with the data from s, a hex encoded
+// string.
+func NewBytes(s string) Bytes {
 	var b Bytes
 	b.Set(s)
 	return b

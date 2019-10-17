@@ -147,7 +147,7 @@ func TestDataStructures(t *testing.T) {
 
 		// Fetch the chain head EBlock via the ChainID.
 		// First use an invalid ChainID and an invalid URL.
-		eb2 := EBlock{ChainID: NewBytes32(nil)}
+		eb2 := EBlock{ChainID: new(Bytes32)}
 		c.FactomdServer = "example.com"
 		assert.Error(eb2.Get(nil, c))
 		assert.Error(eb2.GetFirst(nil, c))
