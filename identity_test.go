@@ -227,7 +227,7 @@ func TestIdentity(t *testing.T) {
 			}
 			assert.True(populated)
 			assert.Equal(int(test.Height), int(i.Height))
-			assert.Equal(test.ID1Key, i.ID1)
+			assert.Equal(test.ID1Key, i.ID1Key)
 			assert.NoError(i.Get(nil, c))
 		})
 	}

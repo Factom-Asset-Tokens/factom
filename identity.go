@@ -63,14 +63,14 @@ func ValidIdentityNameIDs(nameIDs []Bytes) bool {
 
 // Identity represents the Token Issuer's Identity Chain and the public ID1Key.
 type Identity struct {
-	ID1    *ID1Key
+	ID1Key *ID1Key
 	Height uint32
 	Entry
 }
 
 // IsPopulated returns true if the Identity has been populated with an ID1Key.
 func (i Identity) IsPopulated() bool {
-	return i.ID1 != nil && !(*Bytes32)(i.ID1).IsZero()
+	return i.ID1Key != nil && !(*Bytes32)(i.ID1Key).IsZero()
 }
 
 // Get validates i.ChainID as an Identity Chain and parses out the ID1Key.
@@ -103,8 +103,8 @@ func (i *Identity) Get(ctx context.Context, c *Client) error {
 
 	i.Height = eb.Height
 	i.Entry = first
-	i.ID1 = new(ID1Key)
-	copy(i.ID1[:], first.ExtIDs[2])
+	i.ID1Key = new(ID1Key)
+	copy(i.ID1Key[:], first.ExtIDs[2])
 
 	return nil
 }
@@ -124,7 +124,7 @@ func (i *Identity) UnmarshalBinary(data []byte) error {
 	if *i.ChainID != ComputeChainID(i.ExtIDs) {
 		return fmt.Errorf("invalid ExtIDs: Chain ID mismatch")
 	}
-	i.ID1 = new(ID1Key)
-	copy(i.ID1[:], i.ExtIDs[2])
+	i.ID1Key = new(ID1Key)
+	copy(i.ID1Key[:], i.ExtIDs[2])
 	return nil
 }
