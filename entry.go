@@ -39,10 +39,11 @@ import (
 // Entry can be used to Get data when the Hash is known, or submit a new Entry
 // to a given ChainID.
 type Entry struct {
-	// EBlock.Get populates the Hash, Timestamp, ChainID, and Height.
+	// An Entry in EBlock.Entries after a successful call to EBlock.Get has
+	// its ChainID, Hash, and Timestamp.
+	ChainID   *Bytes32  `json:"chainid,omitempty"`
 	Hash      *Bytes32  `json:"entryhash,omitempty"`
 	Timestamp time.Time `json:"-"`
-	ChainID   *Bytes32  `json:"chainid,omitempty"`
 
 	// Entry.Get populates the Content and ExtIDs.
 	ExtIDs  []Bytes `json:"extids"`
@@ -52,9 +53,9 @@ type Entry struct {
 // IsPopulated returns true if e has already been successfully populated by a
 // call to Get.
 func (e Entry) IsPopulated() bool {
-	return e.ExtIDs != nil &&
-		e.Content != nil &&
-		e.ChainID != nil
+	return e.ChainID != nil &&
+		e.ExtIDs != nil &&
+		e.Content != nil
 }
 
 // Get populates e with the Entry data for its e.Hash.

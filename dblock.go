@@ -186,7 +186,8 @@ const DBlockMaxTotalLen = DBlockHeaderLen + DBlockMaxBodyLen
 //
 // https://github.com/FactomProject/FactomDocs/blob/master/factomDataStructureDetails.md#directory-block
 func (db *DBlock) UnmarshalBinary(data []byte) error {
-	if len(data) < DBlockMinTotalLen || len(data) > DBlockMaxTotalLen {
+	if uint64(len(data)) < DBlockMinTotalLen ||
+		uint64(len(data)) > DBlockMaxTotalLen {
 		return fmt.Errorf("invalid length")
 	}
 
@@ -321,7 +322,7 @@ func (db DBlock) MarshalBinary() ([]byte, error) {
 	}
 
 	totalLen := db.MarshalBinaryLen()
-	if totalLen > DBlockMaxTotalLen {
+	if uint64(totalLen) > DBlockMaxTotalLen {
 		return nil, fmt.Errorf("too many EBlocks")
 	}
 	data := make([]byte, totalLen)

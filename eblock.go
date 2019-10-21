@@ -283,7 +283,8 @@ var min10Marker = Bytes32{31: 10}
 //
 // https://github.com/FactomProject/FactomDocs/blob/master/factomDataStructureDetails.md#entry-block
 func (eb *EBlock) UnmarshalBinary(data []byte) error {
-	if len(data) < EBlockMinTotalLen || len(data) > EBlockMaxTotalLen {
+	if uint64(len(data)) < EBlockMinTotalLen ||
+		uint64(len(data)) > EBlockMaxTotalLen {
 		return fmt.Errorf("invalid length")
 	}
 
