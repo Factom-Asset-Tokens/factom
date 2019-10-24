@@ -24,6 +24,7 @@ package factom
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
@@ -107,7 +108,7 @@ func (fb *FBlock) Get(c *Client) (err error) {
 		var result struct {
 			Data Bytes `json:"data"`
 		}
-		if err := c.FactomdRequest("raw-data", params, &result); err != nil {
+		if err := c.FactomdRequest(context.Background(), "raw-data", params, &result); err != nil {
 			return err
 		}
 		return fb.UnmarshalBinary(result.Data)
@@ -120,7 +121,7 @@ func (fb *FBlock) Get(c *Client) (err error) {
 		// We will ignore all the other fields, and just unmarshal from the raw.
 		RawData Bytes `json:"rawdata"`
 	}{}
-	if err := c.FactomdRequest("fblock-by-height", params, &result); err != nil {
+	if err := c.FactomdRequest(context.Background(), "fblock-by-height", params, &result); err != nil {
 		return err
 	}
 

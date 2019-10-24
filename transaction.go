@@ -2,6 +2,7 @@ package factom
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
@@ -155,7 +156,7 @@ func (f *FactoidTransaction) Get(c *Client) error {
 	var result struct {
 		Data Bytes `json:"data"`
 	}
-	if err := c.FactomdRequest("raw-data", params, &result); err != nil {
+	if err := c.FactomdRequest(context.Background(), "raw-data", params, &result); err != nil {
 		return err
 	}
 
@@ -465,7 +466,9 @@ func (ios FactoidTransactionIOs) Decode(data []byte) (int, error) {
 func (io *FactoidTransactionIO) Decode(data []byte) (int, error) {
 	amount, i := varintf.Decode(data)
 	io.Amount = amount
-	io.Address = NewBytes32(data[i : i+32])
+	var tmp Bytes32 // TODO: Fix this
+	copy(tmp[:], data[i:i+32])
+	io.Address = &tmp
 	i += 32
 
 	return i, nil
