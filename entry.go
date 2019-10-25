@@ -165,7 +165,9 @@ func (e *Entry) Create(ctx context.Context, c *Client, ec ECAddress) (Bytes32, e
 // populated.
 //
 // If successful, the Transaction ID is returned.
-func (e *Entry) ComposeCreate(ctx context.Context, c *Client, es EsAddress) (Bytes32, error) {
+func (e *Entry) ComposeCreate(
+	ctx context.Context, c *Client, es EsAddress) (Bytes32, error) {
+
 	commit, reveal, txID, err := e.Compose(es)
 	if err != nil {
 		return Bytes32{}, fmt.Errorf("factom.Entry.Compose(): %w", err)
@@ -317,7 +319,7 @@ func GenerateCommit(es EsAddress, entrydata []byte, hash *Bytes32,
 	i += putInt48(commit[i:], ms)
 
 	if newChain {
-		chainID := entrydata[1:len(Bytes32{})]
+		chainID := entrydata[1 : 1+len(Bytes32{})]
 		// ChainID Hash
 		chainIDHash := sha256d(chainID)
 		i += copy(commit[i:], chainIDHash[:])
