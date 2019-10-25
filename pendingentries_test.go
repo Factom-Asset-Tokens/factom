@@ -24,7 +24,6 @@ package factom
 
 import (
 	"bytes"
-	"fmt"
 	"sort"
 	"testing"
 
@@ -52,7 +51,7 @@ func TestPendingEntries(t *testing.T) {
 		return
 	}
 
-	fmt.Printf("pe: %+v\n", pe)
+	//fmt.Printf("pe: %+v\n", pe)
 
 	require.True(sort.SliceIsSorted(pe, func(i, j int) bool {
 		var ci, cj []byte
@@ -83,7 +82,7 @@ func TestPendingEntries(t *testing.T) {
 	if len(es) == 0 {
 		return
 	}
-	fmt.Printf("es: %+v\n", es)
+	//fmt.Printf("es: %+v\n", es)
 	for _, e := range es {
 		assert.Equal(*e.ChainID, searchID)
 	}

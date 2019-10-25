@@ -29,8 +29,6 @@ import (
 	"fmt"
 	"math"
 	"time"
-
-	jrpc "github.com/AdamSLevy/jsonrpc2/v12"
 )
 
 // EBlock represents a Factom Entry Block.
@@ -82,8 +80,12 @@ func (eb *EBlock) Get(ctx context.Context, c *Client) error {
 
 	// If we don't have a KeyMR, fetch the chain head KeyMR.
 	if eb.KeyMR == nil {
-		if err := eb.GetChainHead(ctx, c); err != nil {
+		_, err := eb.GetChainHead(ctx, c)
+		if err != nil {
 			return err
+		}
+		if eb.KeyMR == nil {
+			return fmt.Errorf("missing chain head")
 		}
 	}
 
@@ -101,35 +103,42 @@ func (eb *EBlock) Get(ctx context.Context, c *Client) error {
 }
 
 // GetChainHead populates eb.KeyMR with the chain head for eb.ChainID, the
-// latest EBlock KeyMR.
+// latest EBlock KeyMR, if it exists.
 //
-// After a successful call, eb will be reset to its zero value with the
-// exception of eb.ChainID and eb.KeyMR.
-func (eb *EBlock) GetChainHead(ctx context.Context, c *Client) error {
+// The returned boolean indicates whether the chain is in the process list.
+//
+// If the Chain does not exist, a jsonrpc2/v12.Error will be returned
+// indicating a Missing Chain Head.
+//
+// If the Chain creation is pending, true will be returned, but the eb.KeyMR
+// will not be populated.
+func (eb *EBlock) GetChainHead(ctx context.Context, c *Client) (bool, error) {
+
 	if eb.ChainID == nil {
-		return fmt.Errorf("no ChainID specified")
+		return false, fmt.Errorf("no ChainID specified")
 	}
 
 	params := struct {
 		ChainID *Bytes32 `json:"chainid"`
 	}{ChainID: eb.ChainID}
 	var result struct {
-		KeyMR              *Bytes32 `json:"chainhead"`
-		ChainInProcessList bool     `json:"chaininprocesslist"`
+		KeyMR              string `json:"chainhead"`
+		ChainInProcessList bool   `json:"chaininprocesslist"`
 	}
 
+	var keyMR Bytes32
 	if err := c.FactomdRequest(ctx, "chain-head", params, &result); err != nil {
-		return err
-	}
-	if result.KeyMR.IsZero() {
-		if result.ChainInProcessList {
-			return jrpc.Error{Message: "new chain in process list"}
-		}
-		return jrpc.Error{Code: -32009, Message: "Missing Chain Head"}
+		return result.ChainInProcessList, err
 	}
 
-	*eb = EBlock{ChainID: eb.ChainID, KeyMR: result.KeyMR}
-	return nil
+	if len(result.KeyMR) > 0 {
+		if err := keyMR.UnmarshalText([]byte(result.KeyMR)); err != nil {
+			return result.ChainInProcessList, err
+		}
+		eb.KeyMR = &keyMR
+	}
+
+	return result.ChainInProcessList, nil
 }
 
 // GetEntries calls eb.Get and then calls Get on each Entry in eb.Entries.

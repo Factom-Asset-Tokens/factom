@@ -180,8 +180,8 @@ func TestEntry(t *testing.T) {
 	})
 	t.Run("Create", func(t *testing.T) {
 		c := NewClient()
-		c.Factomd.DebugRequest = true
-		c.Walletd.DebugRequest = true
+		//c.Factomd.DebugRequest = true
+		//c.Walletd.DebugRequest = true
 		balance, err := ec.GetBalance(nil, c)
 		assert := assert.New(t)
 		require := require.New(t)

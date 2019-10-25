@@ -36,7 +36,6 @@ var courtesyNode = "https://courtesy-node.factom.com/v2"
 func TestDataStructures(t *testing.T) {
 	height := uint32(166587)
 	c := NewClient()
-	c.Factomd.DebugRequest = true
 	var db DBlock
 	db.Height = height
 	t.Run("DBlock", func(t *testing.T) {
@@ -162,6 +161,7 @@ func TestDataStructures(t *testing.T) {
 			`jsonrpc2.Error{Code:-32009, Message:"Missing Chain Head"}`)
 		assert.Nil(ebs)
 
+		//c.Factomd.DebugRequest = true
 		// A valid ChainID should allow it to be populated.
 		eb2.ChainID = eb.ChainID
 		require.NoError(eb2.Get(nil, c))
