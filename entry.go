@@ -420,8 +420,8 @@ func (e Entry) MarshalBinaryLen() int {
 //
 // https://github.com/FactomProject/FactomDocs/blob/master/factomDataStructureDetails.md#entry
 func (e Entry) MarshalBinary() ([]byte, error) {
-	if !e.IsPopulated() {
-		return nil, fmt.Errorf("not populated")
+	if e.ChainID == nil {
+		return nil, fmt.Errorf("missing ChainID")
 	}
 
 	totalLen := e.MarshalBinaryLen()
@@ -459,8 +459,16 @@ const EntryMaxDataLen = 10240
 // EntryMaxTotalLen is the maximum total encoded length of an Entry.
 const EntryMaxTotalLen = EntryMaxDataLen + EntryHeaderLen
 
-// UnmarshalBinary unmarshals raw entry data, and populates or validates the
-// e.Hash and e.ChainID, if not nil. Entries are encoded as follows:
+// UnmarshalBinary unmarshals raw entry data into e.
+//
+// If e.ChainID is not nil, it must equal the ChainID described in the data.
+//
+// If e.Hash is not nil, it must equal ComputeEntryHash(data).
+//
+// Like json.Unmarshal, if e.ExtIDs or e.Content are preallocated, they are
+// reset to length zero and then appended to.
+//
+// The data must encode a valid Entry. Entries are encoded as follows:
 //
 //      [Version byte (0x00)] +
 //      [ChainID (Bytes32)] +
@@ -472,6 +480,7 @@ const EntryMaxTotalLen = EntryMaxDataLen + EntryHeaderLen
 //
 // https://github.com/FactomProject/FactomDocs/blob/master/factomDataStructureDetails.md#entry
 func (e *Entry) UnmarshalBinary(data []byte) error {
+
 	if len(data) < EntryHeaderLen || len(data) > EntryMaxTotalLen {
 		return fmt.Errorf("invalid length")
 	}
@@ -498,7 +507,8 @@ func (e *Entry) UnmarshalBinary(data []byte) error {
 	}
 	i += 2
 
-	e.ExtIDs = make([]Bytes, 0)
+	e.ExtIDs = e.ExtIDs[0:0]
+
 	for i < EntryHeaderLen+extIDTotalLen {
 		extIDLen := int(binary.BigEndian.Uint16(data[i : i+2]))
 		if i+2+extIDLen > EntryHeaderLen+extIDTotalLen {
@@ -510,7 +520,7 @@ func (e *Entry) UnmarshalBinary(data []byte) error {
 		i += extIDLen
 	}
 
-	e.Content = data[i:]
+	e.Content = append(e.Content[0:0], data...)
 
 	// Verify Hash, if set, otherwise populate it.
 	hash := ComputeEntryHash(data)
