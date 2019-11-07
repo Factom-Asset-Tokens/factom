@@ -520,7 +520,7 @@ func (e *Entry) UnmarshalBinary(data []byte) error {
 		i += extIDLen
 	}
 
-	e.Content = append(e.Content[0:0], data[i]...)
+	e.Content = append(e.Content[0:0], data[i:]...)
 
 	// Verify Hash, if set, otherwise populate it.
 	hash := ComputeEntryHash(data)
