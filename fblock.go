@@ -54,7 +54,6 @@ type FBlock struct {
 
 	// ExpansionBytes is the expansion space in the fblock. If we do not
 	// understand the expansion, we just store the raw bytes
-	ExpansionSize  int64 `json:"expansionsize"` // Stored as a varint
 	ExpansionBytes Bytes `json:"expansiondata"`
 
 	// Number of bytes contained in the body
@@ -211,7 +210,6 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 	// This should be a safe cast to int, as the size is never > max int
 	// For these type assertions to fail on a 32 bit system, we would need a
 	// 4gb factoid block.
-	fb.ExpansionSize = int64(expansionSize)
 	fb.ExpansionBytes = make([]byte, expansionSize)
 	copy(fb.ExpansionBytes, data[i:i+int(expansionSize)])
 	i += int(expansionSize)
@@ -308,7 +306,7 @@ func (fb *FBlock) MarshalBinaryHeader() ([]byte, error) {
 		return nil, fmt.Errorf("not populated")
 	}
 
-	expansionSize := varintf.Encode(uint64(fb.ExpansionSize))
+	expansionSize := varintf.Encode(uint64(len(fb.ExpansionBytes)))
 	data := make([]byte, FBlockMinHeaderLen+len(expansionSize)+len(fb.ExpansionBytes))
 	var i int
 	fBlockChain := FBlockChainID()
