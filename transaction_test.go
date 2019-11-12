@@ -177,7 +177,7 @@ func TestFactoidTransaction_UnmarshalBinary(t *testing.T) {
 					assert.Equal(test.TxID[:], f.TransactionID[:])
 				}
 				if !test.FullHash.IsZero() {
-					assert.Equal(test.FullHash, hash)
+					assert.Equal(test.FullHash[:], hash[:])
 				}
 				assert.Equal(read, len(test.Data))
 				assert.Equal(test.Valid, f.Valid())

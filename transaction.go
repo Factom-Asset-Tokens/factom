@@ -55,7 +55,7 @@ type FactoidTransactionSignature struct {
 func (f FactoidTransaction) IsPopulated() bool {
 	return f.FCTInputs != nil && // Although a coinbase has 0 inputs, this array should not be nil
 		f.Signatures != nil &&
-		f.TimestampSalt != time.Time{}
+		!f.TimestampSalt.IsZero()
 }
 
 // IsPopulated returns true if s has already been successfully populated by a
@@ -66,35 +66,35 @@ func (s FactoidTransactionSignature) IsPopulated() bool {
 
 // Valid returns if the inputs of the factoid transaction are properly signed by the redeem conditions.
 // It will also validate the total inputs is greater than the total outputs.
-func (s *FactoidTransaction) Valid() bool {
-	if !s.IsPopulated() {
+func (f *FactoidTransaction) Valid() bool {
+	if !f.IsPopulated() {
 		return false
 	}
 
 	// Validate amounts
-	if s.TotalFCTInputs() < s.TotalFCTOutputs()+s.TotalECOutput() {
+	if f.TotalFCTInputs() < f.TotalFCTOutputs()+f.TotalECOutput() {
 		return false
 	}
 
 	// Validate signatures
-	if len(s.FCTInputs) != len(s.Signatures) {
+	if len(f.FCTInputs) != len(f.Signatures) {
 		return false
 	}
 
-	msg, err := s.MarshalLedgerBinary()
+	msg, err := f.MarshalLedgerBinary()
 	if err != nil {
 		return false
 	}
 
-	for i := range s.FCTInputs {
-		expAddr := s.Signatures[i].ReedeemCondition.Address()
+	for i := range f.FCTInputs {
+		expAddr := f.Signatures[i].ReedeemCondition.Address()
 
 		// RCD should match the input
-		if bytes.Compare(expAddr[:], s.FCTInputs[i].Address[:]) != 0 {
+		if bytes.Compare(expAddr[:], f.FCTInputs[i].Address[:]) != 0 {
 			return false
 		}
 
-		if !s.Signatures[i].Validate(msg) {
+		if !f.Signatures[i].Validate(msg) {
 			return false
 		}
 	}
@@ -102,17 +102,17 @@ func (s *FactoidTransaction) Valid() bool {
 	return true
 }
 
-func (s *FactoidTransaction) TotalFCTInputs() (total uint64) {
-	return FactoidTransactionIOs(s.FCTInputs).TotalAmount()
+func (f *FactoidTransaction) TotalFCTInputs() (total uint64) {
+	return FactoidTransactionIOs(f.FCTInputs).TotalAmount()
 }
 
-func (s *FactoidTransaction) TotalFCTOutputs() (total uint64) {
-	return FactoidTransactionIOs(s.FCTOutputs).TotalAmount()
+func (f *FactoidTransaction) TotalFCTOutputs() (total uint64) {
+	return FactoidTransactionIOs(f.FCTOutputs).TotalAmount()
 }
 
 // TotalECOutput is delimated in factoishis
-func (s *FactoidTransaction) TotalECOutput() (total uint64) {
-	return FactoidTransactionIOs(s.ECOutputs).TotalAmount()
+func (f *FactoidTransaction) TotalECOutput() (total uint64) {
+	return FactoidTransactionIOs(f.ECOutputs).TotalAmount()
 }
 
 func (s FactoidTransactionIOs) TotalAmount() (total uint64) {
