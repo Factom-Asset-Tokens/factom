@@ -355,10 +355,22 @@ func (f *FactoidTransaction) Decode(data []byte) (i int, err error) {
 	}
 
 	// Decode header
-	i, err = f.DecodeHeader(data)
-	if err != nil {
-		return 0, err
-	}
+	version, i := varintf.Decode(data)
+	f.Version = version
+
+	msdata := make([]byte, 8)
+	copy(msdata[2:], data[i:i+6])
+	ms := binary.BigEndian.Uint64(msdata)
+	f.TimestampSalt = time.Unix(0, int64(ms)*1e6)
+	i += 6
+	f.InputCount = data[i]
+	i += 1
+	f.FCTOutputCount = data[i]
+	i += 1
+	f.ECOutputCount = data[i]
+	i += 1
+
+	// Decode the body
 
 	// Decode the inputs
 	f.FCTInputs = make([]FactoidTransactionIO, f.InputCount)
@@ -409,25 +421,6 @@ func (f *FactoidTransaction) UnmarshalBinary(data []byte) error {
 	// TODO: Some length checks to prevent too few/too many bytes
 	_, err := f.Decode(data)
 	return err
-}
-
-func (f *FactoidTransaction) DecodeHeader(data []byte) (int, error) {
-	version, i := varintf.Decode(data)
-	f.Version = version
-
-	msdata := make([]byte, 8)
-	copy(msdata[2:], data[i:i+6])
-	ms := binary.BigEndian.Uint64(msdata)
-	f.TimestampSalt = time.Unix(0, int64(ms)*1e6)
-	i += 6
-	f.InputCount = data[i]
-	i += 1
-	f.FCTOutputCount = data[i]
-	i += 1
-	f.ECOutputCount = data[i]
-	i += 1
-
-	return i, nil
 }
 
 // Decode takes a given input and decodes the set of bytes needed to populate
