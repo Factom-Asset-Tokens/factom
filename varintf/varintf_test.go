@@ -102,7 +102,7 @@ func TestFactomSpecExamples(t *testing.T) {
 func TestVarInt_Panic(t *testing.T) {
 	assert := assert.New(t)
 	// a quick helper func to test these things
-	testDecode := func(expA uint64, expR int64, data []byte, msg string) {
+	testDecode := func(expA uint64, expR int, data []byte, msg string) {
 		a, r := Decode([]byte{179, 144})
 		assert.Equal(expA, a, msg)
 		assert.Equal(expR, r, msg)
