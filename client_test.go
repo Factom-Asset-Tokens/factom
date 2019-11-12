@@ -21,8 +21,9 @@ func ClientWithFixedRPCResponse(result interface{}) *http.Client {
 		_ = json.Unmarshal(reqData, &jReq)
 
 		resp := jsonrpc2.Response{
-			Result: result,
-			ID:     jReq.ID,
+			JSONRPC: "2.0",
+			Result:  result,
+			ID:      jReq.ID,
 		}
 
 		respData, _ := json.Marshal(resp)

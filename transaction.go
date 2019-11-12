@@ -40,12 +40,12 @@ type FactoidTransactionIO struct {
 	Amount uint64 `json:"amount"`
 	// Address can be an SHA256d(RCD) for FCT in/out, or a public key for EC out.
 	// It is the encoded bytes into the human readable addresses
-	Address *Bytes32 `json:"address"`
+	Address Bytes32 `json:"address"`
 }
 
 type FactoidTransactionSignature struct {
 	// SHA256d(RCD) == FactoidIOAddress for the inputs
-	ReedeemCondition RCD   `json:"rcd"`
+	ReedeemCondition RCD1  `json:"rcd"`
 	SignatureBlock   Bytes `json:"amount"`
 }
 
@@ -58,17 +58,10 @@ func (f FactoidTransaction) IsPopulated() bool {
 		f.Timestamp != time.Time{}
 }
 
-// IsPopulated returns true if io has already been successfully populated by a
-// call to Get. IsPopulated returns false if io.Address is nil
-func (io FactoidTransactionIO) IsPopulated() bool {
-	return io.Address != nil
-}
-
 // IsPopulated returns true if s has already been successfully populated by a
 // call to Get. IsPopulated returns false if s.SignatureBlock or s.ReedeemCondition are nil
 func (s FactoidTransactionSignature) IsPopulated() bool {
-	return s.SignatureBlock != nil &&
-		s.ReedeemCondition != nil
+	return s.SignatureBlock != nil
 }
 
 // Valid returns if the inputs of the factoid transaction are properly signed by the redeem conditions.
@@ -94,10 +87,8 @@ func (s *FactoidTransaction) Valid() bool {
 	}
 
 	for i := range s.FCTInputs {
-		expAddr, err := s.Signatures[i].ReedeemCondition.Address()
-		if err != nil {
-			return false
-		}
+		expAddr := s.Signatures[i].ReedeemCondition.Address()
+
 		// RCD should match the input
 		if bytes.Compare(expAddr[:], s.FCTInputs[i].Address[:]) != 0 {
 			return false
@@ -310,10 +301,6 @@ func (ios FactoidTransactionIOs) MarshalBinary() ([]byte, error) {
 // MarshalBinary marshals a transaction io to its binary representation. See
 // UnmarshalBinary for encoding details.
 func (io *FactoidTransactionIO) MarshalBinary() ([]byte, error) {
-	if !io.IsPopulated() {
-		return nil, fmt.Errorf("not populated")
-	}
-
 	amount := varintf.Encode(io.Amount)
 	data := make([]byte, 32+len(amount))
 	var i int
@@ -468,7 +455,7 @@ func (io *FactoidTransactionIO) Decode(data []byte) (int, error) {
 	io.Amount = amount
 	var tmp Bytes32 // TODO: Fix this
 	copy(tmp[:], data[i:i+32])
-	io.Address = &tmp
+	io.Address = tmp
 	i += 32
 
 	return i, nil
@@ -482,7 +469,15 @@ func (s *FactoidTransactionSignature) Decode(data []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	s.ReedeemCondition = rcd
+
+	// TODO: How do you want to handle this? Have the decode only return the
+	// 	concrete rcd1 type?
+	rcd1, ok := rcd.(*RCD1)
+	if !ok {
+		return -1, fmt.Errorf("rcd %d type not supported", rcd.Type())
+	}
+	s.ReedeemCondition = *rcd1
+
 	s.SignatureBlock = make([]byte, rcd.SignatureBlockSize())
 	i += copy(s.SignatureBlock, data[i:])
 

@@ -37,36 +37,36 @@ var rcdUnmarshalBinaryTests = []struct {
 	Data    []byte
 	Error   string
 	RCDType uint64
-	Address *Bytes32
+	Address Bytes32
 }{
 	{
 		Name: "valid",
-		Data: NewBytesFromString(
+		Data: NewBytes(
 			"010fd93026041de6387d2dcef0917c06288e690fa7652c20f044746e787b06b2bd"),
 		RCDType: 1,
-		Address: NewBytes32FromString("304d80538e27505d44d5ff0ada6a9d420d93a9994da75f0763c12c827b616668"),
+		Address: NewBytes32("304d80538e27505d44d5ff0ada6a9d420d93a9994da75f0763c12c827b616668"),
 	},
 	{
 		Name: "invalid (too short)",
-		Data: NewBytesFromString(
+		Data: NewBytes(
 			""),
 		Error: "insufficient length",
 	},
 	{
 		Name: "invalid (too short)",
-		Data: NewBytesFromString(
+		Data: NewBytes(
 			"010fd93026041de6387d2dcef0917c06288e690fa7652c20f044746e787b06b2"),
 		Error: "insufficient length",
 	},
 	{
 		Name: "invalid (unsupported rcd type)",
-		Data: NewBytesFromString(
+		Data: NewBytes(
 			"000fd93026041de6387d2dcef0917c06288e690fa7652c20f044746e787b06b2bd"),
 		Error: "rcd version 0 unsupported",
 	},
 	{
 		Name: "invalid (unsupported rcd type)",
-		Data: NewBytesFromString(
+		Data: NewBytes(
 			"020fd93026041de6387d2dcef0917c06288e690fa7652c20f044746e787b06b2bd"),
 		Error: "rcd version 2 unsupported",
 	},
@@ -84,8 +84,7 @@ func TestDecodeRCD(t *testing.T) {
 				require.NotNil(rcd)
 
 				assert.Equal(rcd.Type(), test.RCDType)
-				addr, err := rcd.Address()
-				require.NoError(err)
+				addr := rcd.Address()
 				assert.Equal(addr[:], test.Address[:])
 			} else {
 				require.EqualError(err, test.Error)
@@ -110,11 +109,4 @@ func TestDecodeRCD(t *testing.T) {
 			}
 		}
 	})
-}
-
-func TestRCD1_IsPopulated(t *testing.T) {
-	r := RCD1{}
-	if r.IsPopulated() {
-		t.Errorf("Should not be populated")
-	}
 }

@@ -40,21 +40,11 @@ const (
 
 // FBlock represents a Factom Factoid Block
 type FBlock struct {
+	// Computed Fields
 	KeyMR       *Bytes32 `json:"keymr"`
 	LedgerKeyMR *Bytes32 `json:"ledgerkeymr"`
 
-	Header FBlockHeader `json:"header"`
-
-	Transactions []*FactoidTransaction `json:"transactions"`
-
-	// End of Minute transaction heights.  The mark the height of the first entry of
-	// the NEXT period.  This entry may not exist.  The Coinbase transaction is considered
-	// to be in the first period.  Factom's periods will initially be a minute long, and
-	// there will be 10 of them.  This may change in the future.
-	endOfPeriod [10]int
-}
-
-type FBlockHeader struct {
+	// Header Fields
 	BodyMR          *Bytes32 `json:"bodymr"`
 	PrevKeyMR       *Bytes32 `json:"prevkeymr"`
 	PrevLedgerKeyMR *Bytes32 `json:"prevkeymr"`
@@ -62,24 +52,34 @@ type FBlockHeader struct {
 	ExchangeRate uint64 `json:"exchrate"`
 	Height       uint32 `json:"dbheight"`
 
-	// ExpansionBytes is the expansion space in the fblock. If we do not understand the
-	// expansion, we just store the raw bytes
+	// ExpansionBytes is the expansion space in the fblock. If we do not
+	// understand the expansion, we just store the raw bytes
 	ExpansionSize  int64 `json:"expansionsize"` // Stored as a varint
 	ExpansionBytes Bytes `json:"expansiondata"`
 
-	// Number of txs in the block
-	TransactionCount uint32 `json:"txcount"`
 	// Number of bytes contained in the body
 	BodySize uint32 `json:"bodysize"`
+
+	// Body Fields
+	Transactions []FactoidTransaction `json:"transactions"`
+
+	// Other fields
+	//
+	// End of Minute transaction heights.  The mark the height of the first
+	// entry of the NEXT period.  This entry may not exist.  The Coinbase
+	// transaction is considered to be in the first period.  Factom's
+	// periods will initially be a minute long, and there will be
+	// 10 of them.  This may change in the future.
+	endOfPeriod [10]int
 }
 
 // IsPopulated returns true if fb has already been successfully populated by a
 // call to Get. IsPopulated returns false if fb.Transactions is nil.
 func (fb FBlock) IsPopulated() bool {
 	return len(fb.Transactions) > 0 && // FBlocks always contain at least a coinbase
-		fb.Header.BodyMR != nil &&
-		fb.Header.PrevKeyMR != nil &&
-		fb.Header.PrevLedgerKeyMR != nil
+		fb.BodyMR != nil &&
+		fb.PrevKeyMR != nil &&
+		fb.PrevLedgerKeyMR != nil
 }
 
 // Get queries factomd for the Factoid Block at fb.Header.Height or fb.KeyMR.
@@ -116,7 +116,7 @@ func (fb *FBlock) Get(c *Client) (err error) {
 
 	params := struct {
 		Height uint32 `json:"height"`
-	}{fb.Header.Height}
+	}{fb.Height}
 	result := struct {
 		// We will ignore all the other fields, and just unmarshal from the raw.
 		RawData Bytes `json:"rawdata"`
@@ -146,7 +146,7 @@ const (
 // UnmarshalBinary unmarshals raw directory block data.
 //
 // Header
-// [Factoid Block ChainID (Bytes32{31:0x0a})] +
+// [Factoid Block ChainID (Bytes32{31:0x0f})] +
 // [BodyMR (Bytes32)] +
 // [PrevKeyMR (Bytes32)] +
 // [PrevLedgerKeyMR (Bytes32)] +
@@ -166,11 +166,13 @@ const (
 func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 	// Because the length of an FBlock is hard to define up front, we will catch
 	// any sort of out of bound errors in a recover
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("failed to unmarshal")
-		}
-	}()
+	// TODO: Currently the unmarshal test with random data will panic here.
+	//		We need to catch all the panic conditions.
+	//defer func() {
+	//	if r := recover(); r != nil {
+	//		err = fmt.Errorf("failed to unmarshal")
+	//	}
+	//}()
 
 	// TODO: More length checks up front
 	if len(data) < FBlockMinTotalLen {
@@ -182,31 +184,44 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 		return fmt.Errorf("invalid factoid chainid")
 	}
 	i := 32
-	fb.Header.BodyMR = new(Bytes32)
-	i += copy(fb.Header.BodyMR[:], data[i:i+len(fb.Header.BodyMR)])
-	fb.Header.PrevKeyMR = new(Bytes32)
-	i += copy(fb.Header.PrevKeyMR[:], data[i:i+len(fb.Header.PrevKeyMR)])
-	fb.Header.PrevLedgerKeyMR = new(Bytes32)
-	i += copy(fb.Header.PrevLedgerKeyMR[:], data[i:i+len(fb.Header.PrevLedgerKeyMR)])
-	fb.Header.ExchangeRate = binary.BigEndian.Uint64(data[i : i+8])
+	fb.BodyMR = new(Bytes32)
+	i += copy(fb.BodyMR[:], data[i:i+len(fb.BodyMR)])
+	fb.PrevKeyMR = new(Bytes32)
+	i += copy(fb.PrevKeyMR[:], data[i:i+len(fb.PrevKeyMR)])
+	fb.PrevLedgerKeyMR = new(Bytes32)
+	i += copy(fb.PrevLedgerKeyMR[:], data[i:i+len(fb.PrevLedgerKeyMR)])
+	fb.ExchangeRate = binary.BigEndian.Uint64(data[i : i+8])
 	i += 8
-	fb.Header.Height = binary.BigEndian.Uint32(data[i : i+4])
+	fb.Height = binary.BigEndian.Uint32(data[i : i+4])
 	i += 4
 
-	expansionsize, read := binary.Varint(data[i:])
-	fb.Header.ExpansionSize = expansionsize
+	expansionSize, read := varintf.Decode(data[i:])
+	if read < 0 {
+		return fmt.Errorf("expansion size is not a valid varint")
+	}
 	i += read
-	fb.Header.ExpansionBytes = make([]byte, expansionsize)
-	copy(fb.Header.ExpansionBytes, data[i:i+int(expansionsize)])
-	i += int(expansionsize) // TODO: This should be safe, as the expansion size is never > max int
 
-	fb.Header.TransactionCount = binary.BigEndian.Uint32(data[i : i+4])
+	// sanity check, if the expansion size is greater than all the data we
+	// have, then the expansion size was bogus.
+	if expansionSize > uint64(len(data)) {
+		return fmt.Errorf("expansion size is too large at %d bytes, "+
+			"when only %d bytes exist", expansionSize, len(data))
+	}
+
+	// This should be a safe cast to int, as the size is never > max int
+	// For these type assertions to fail on a 32 bit system, we would need a
+	// 4gb factoid block.
+	fb.ExpansionSize = int64(expansionSize)
+	fb.ExpansionBytes = make([]byte, expansionSize)
+	copy(fb.ExpansionBytes, data[i:i+int(expansionSize)])
+	i += int(expansionSize)
+
+	txCount := binary.BigEndian.Uint32(data[i : i+4])
 	i += 4
-	fb.Header.BodySize = binary.BigEndian.Uint32(data[i : i+4])
+	fb.BodySize = binary.BigEndian.Uint32(data[i : i+4])
 	i += 4
 
-	// TODO: Body
-	fb.Transactions = make([]*FactoidTransaction, fb.Header.TransactionCount)
+	fb.Transactions = make([]FactoidTransaction, txCount)
 	var period int
 	for c := range fb.Transactions {
 		// Before each fct tx, we need to see if there is a marker byte that indicates a minute marker
@@ -219,7 +234,7 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 			i += 1
 		}
 
-		fb.Transactions[c] = new(FactoidTransaction)
+		// fb.Transactions[c] = new(FactoidTransaction)
 		read, err := fb.Transactions[c].Decode(data[i:])
 		if err != nil {
 			return err
@@ -229,7 +244,7 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 
 	// If we have not hit the end of our periods, a single byte will remain
 	for period < len(fb.endOfPeriod) {
-		fb.endOfPeriod[period] = int(fb.Header.TransactionCount)
+		fb.endOfPeriod[period] = int(txCount)
 		period++ // The next period encountered will be the next minute
 		i += 1
 	}
@@ -257,7 +272,7 @@ func (fb *FBlock) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 
-	data := make([]byte, len(header)+int(fb.Header.BodySize))
+	data := make([]byte, len(header)+int(fb.BodySize))
 
 	var i int
 	i += copy(data[i:], header)
@@ -293,25 +308,25 @@ func (fb *FBlock) MarshalBinaryHeader() ([]byte, error) {
 		return nil, fmt.Errorf("not populated")
 	}
 
-	expansionSize := varintf.Encode(uint64(fb.Header.ExpansionSize))
-	data := make([]byte, FBlockMinHeaderLen+len(expansionSize)+len(fb.Header.ExpansionBytes))
+	expansionSize := varintf.Encode(uint64(fb.ExpansionSize))
+	data := make([]byte, FBlockMinHeaderLen+len(expansionSize)+len(fb.ExpansionBytes))
 	var i int
 	fBlockChain := FBlockChainID()
 	i += copy(data[i:], fBlockChain[:])
-	i += copy(data[i:], fb.Header.BodyMR[:])
-	i += copy(data[i:], fb.Header.PrevKeyMR[:])
-	i += copy(data[i:], fb.Header.PrevLedgerKeyMR[:])
+	i += copy(data[i:], fb.BodyMR[:])
+	i += copy(data[i:], fb.PrevKeyMR[:])
+	i += copy(data[i:], fb.PrevLedgerKeyMR[:])
 
-	binary.BigEndian.PutUint64(data[i:], fb.Header.ExchangeRate)
+	binary.BigEndian.PutUint64(data[i:], fb.ExchangeRate)
 	i += 8
-	binary.BigEndian.PutUint32(data[i:], fb.Header.Height)
+	binary.BigEndian.PutUint32(data[i:], fb.Height)
 	i += 4
 	i += copy(data[i:], expansionSize)
 	// Currently all expansion bytes are stored in the ExpansionBytes. So just write them out
-	i += copy(data[i:], fb.Header.ExpansionBytes)
-	binary.BigEndian.PutUint32(data[i:], fb.Header.TransactionCount)
+	i += copy(data[i:], fb.ExpansionBytes)
+	binary.BigEndian.PutUint32(data[i:], uint32(len(fb.Transactions)))
 	i += 4
-	binary.BigEndian.PutUint32(data[i:], fb.Header.BodySize)
+	binary.BigEndian.PutUint32(data[i:], fb.BodySize)
 	i += 4
 
 	return data, nil
@@ -452,7 +467,7 @@ func (fb FBlock) Transaction(txid Bytes32) *FactoidTransaction {
 		return bytes.Compare(fb.Transactions[i].TransactionID[:], fb.Transactions[i].TransactionID[:]) >= 0
 	})
 	if ei < len(fb.Transactions) && *fb.Transactions[ei].TransactionID == txid {
-		return fb.Transactions[ei]
+		return &fb.Transactions[ei]
 	}
 	return nil
 }

@@ -20,7 +20,7 @@ type RCD interface {
 	SignatureBlockSize() int
 
 	// Address returns the sha256(rcd) that is the factoid address
-	Address() (FAAddress, error)
+	Address() FAAddress
 
 	Validate(msg Bytes, signature Bytes) bool
 
@@ -70,33 +70,24 @@ func (r RCD1) SignatureBlockSize() int {
 	return ed25519.SignatureSize // 64 byte ed25519 sig
 }
 
-func (r RCD1) Address() (FAAddress, error) {
-	data, err := r.MarshalBinary()
-	if err != nil {
-		return FAAddress{}, err
-	}
-	addr := sha256d(data)
+func (r RCD1) Address() FAAddress {
+	addr := sha256d(r.RCD())
 
-	return FAAddress(addr), nil
+	return FAAddress(addr)
 }
 
 func (r RCD1) Validate(msg Bytes, signature Bytes) bool {
 	return ed25519.Verify(r[:], msg, signature)
 }
 
-// IsPopulated returns true if r has already been successfully populated by a
-// call to. IsPopulated returns false if r is an all zero byte array
-func (r RCD1) IsPopulated() bool {
-	return !Bytes32(r).IsZero()
+func (r RCD1) RCD() []byte {
+	data, _ := r.MarshalBinary()
+	return data
 }
 
 // MarshalBinary marshals the rcd type to its binary representation. See
 // UnmarshalBinary for encoding details.
 func (r RCD1) MarshalBinary() ([]byte, error) {
-	if !r.IsPopulated() {
-		return nil, fmt.Errorf("not populated")
-	}
-
 	data := make([]byte, RCDType1Len)
 	data[0] = 1
 	i := 1
