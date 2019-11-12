@@ -28,7 +28,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
-	"sort"
 
 	merkle "github.com/AdamSLevy/go-merkle"
 	"github.com/Factom-Asset-Tokens/factom/varintf"
@@ -451,16 +450,4 @@ func (fb FBlock) ComputeHeaderHash() (Bytes32, error) {
 		return Bytes32{}, err
 	}
 	return sha256.Sum256(header), nil
-}
-
-// Transaction efficiently finds and returns the *FactoidTransaction in fb.Transactions
-// for the given txid, if it exists. Otherwise, Transaction returns nil.
-func (fb FBlock) Transaction(txid Bytes32) *FactoidTransaction {
-	ei := sort.Search(len(fb.Transactions), func(i int) bool {
-		return bytes.Compare(fb.Transactions[i].TransactionID[:], fb.Transactions[i].TransactionID[:]) >= 0
-	})
-	if ei < len(fb.Transactions) && *fb.Transactions[ei].TransactionID == txid {
-		return &fb.Transactions[ei]
-	}
-	return nil
 }
