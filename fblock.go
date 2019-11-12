@@ -65,7 +65,7 @@ type FBlock struct {
 	// Other fields
 	//
 	// End of Minute transaction heights.  The mark the height of the first
-	// entry of the NEXT period.  This entry may not exist.  The Coinbase
+	// tx index of the NEXT period.  This tx may not exist.  The Coinbase
 	// transaction is considered to be in the first period.  Factom's
 	// periods will initially be a minute long, and there will be
 	// 10 of them.  This may change in the future.
@@ -145,21 +145,21 @@ const (
 // UnmarshalBinary unmarshals raw directory block data.
 //
 // Header
-// [Factoid Block ChainID (Bytes32{31:0x0f})] +
-// [BodyMR (Bytes32)] +
-// [PrevKeyMR (Bytes32)] +
-// [PrevLedgerKeyMR (Bytes32)] +
-// [Exchange Rate (8 bytes)] +
-// [DB Height (4 bytes)] +
-// [Header Expansion size (Bytes)] +
-// [Header Expansion Area (Bytes)] +
-// [Transaction Count (4 bytes)] +
-// [Body Size (4 bytes)] +
+//      [Factoid Block ChainID (Bytes32{31:0x0f})] +
+//      [BodyMR (Bytes32)] +
+//      [PrevKeyMR (Bytes32)] +
+//      [PrevLedgerKeyMR (Bytes32)] +
+//      [Exchange Rate (8 bytes)] +
+//      [DB Height (4 bytes)] +
+//      [Header Expansion size (Bytes)] +
+//      [Header Expansion Area (Bytes)] +
+//      [Transaction Count (4 bytes)] +
+//      [Body Size (4 bytes)] +
 //
 // Body
-// [Tx 0 (Bytes)] +
-// ... +
-// [Tx N (Bytes)] +
+//      [Tx 0 (Bytes)] +
+//      ... +
+//      [Tx N (Bytes)] +
 //
 // https://github.com/FactomProject/FactomDocs/blob/master/factomDataStructureDetails.md#factoid-block
 func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
@@ -353,12 +353,7 @@ func (fb FBlock) computeKeyMR(ledger bool) (Bytes32, error) {
 		return Bytes32{}, err
 	}
 
-	var body [32]byte
-	if ledger {
-		body, err = fb.ComputeLedgerBodyMR()
-	} else {
-		body, err = fb.ComputeBodyMR()
-	}
+	body, err := fb.computeBodyMR(ledger)
 	if err != nil {
 		return Bytes32{}, err
 	}

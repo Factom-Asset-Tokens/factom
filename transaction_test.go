@@ -53,7 +53,7 @@ var txMarshalBinaryTests = []struct {
 		FactoidTransactionHeader: FactoidTransactionHeader{
 			TransactionID:  nil,
 			Version:        2,
-			Timestamp:      time.Unix(0, 1443537161594*1e6),
+			TimestampSalt:  time.Unix(0, 1443537161594*1e6),
 			InputCount:     1,
 			FCTOutputCount: 1,
 			ECOutputCount:  0,

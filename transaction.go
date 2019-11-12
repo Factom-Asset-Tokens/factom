@@ -26,8 +26,8 @@ type FactoidTransactionHeader struct {
 	TransactionID *Bytes32 `json:"txid"`
 
 	Version uint64 `json:"version"`
-	// Timestamp is accurate to the millisecond
-	Timestamp time.Time `json:"timestamp"`
+	// TimestampSalt is accurate to the millisecond
+	TimestampSalt time.Time `json:"timestamp"`
 
 	InputCount     uint8 `json:"inputcount"`
 	FCTOutputCount uint8 `json:"fctoutcount"`
@@ -55,7 +55,7 @@ type FactoidTransactionSignature struct {
 func (f FactoidTransaction) IsPopulated() bool {
 	return f.FCTInputs != nil && // Although a coinbase has 0 inputs, this array should not be nil
 		f.Signatures != nil &&
-		f.Timestamp != time.Time{}
+		f.TimestampSalt != time.Time{}
 }
 
 // IsPopulated returns true if s has already been successfully populated by a
@@ -268,7 +268,7 @@ func (f *FactoidTransaction) MarshalHeaderBinary() ([]byte, error) {
 	i += copy(data[i:], version)
 
 	// Do the timestamp as 6 bytes in ms
-	ms := f.Timestamp.UnixNano() / 1e6
+	ms := f.TimestampSalt.UnixNano() / 1e6
 	buf := bytes.NewBuffer(make([]byte, 0, 8))
 	if err := binary.Write(buf, binary.BigEndian, ms); err != nil {
 		return nil, err
@@ -418,7 +418,7 @@ func (f *FactoidTransaction) DecodeHeader(data []byte) (int, error) {
 	msdata := make([]byte, 8)
 	copy(msdata[2:], data[i:i+6])
 	ms := binary.BigEndian.Uint64(msdata)
-	f.Timestamp = time.Unix(0, int64(ms)*1e6)
+	f.TimestampSalt = time.Unix(0, int64(ms)*1e6)
 	i += 6
 	f.InputCount = data[i]
 	i += 1
