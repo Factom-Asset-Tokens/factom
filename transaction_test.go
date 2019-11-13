@@ -51,12 +51,13 @@ var txMarshalBinaryTests = []struct {
 	FullHash: NewBytes32("64251aa63e011f803c883acf2342d784b405afa59e24d9c5506c84f6c91bf18b"),
 	FactoidTransaction: FactoidTransaction{
 		FactoidTransactionHeader: FactoidTransactionHeader{
-			TransactionID:  nil,
-			Version:        2,
-			TimestampSalt:  time.Unix(0, 1443537161594*1e6),
-			InputCount:     1,
-			FCTOutputCount: 1,
-			ECOutputCount:  0,
+			TransactionID: nil,
+			Version:       2,
+			TimestampSalt: time.Unix(0, 1443537161594*1e6),
+			// Keep the count info, hard to decode with your eyes...
+			// InputCount:     1,
+			// FCTOutputCount: 1,
+			// ECOutputCount:  0,
 		},
 		FCTInputs: []FactoidTransactionIO{
 			{

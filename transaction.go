@@ -28,10 +28,6 @@ type FactoidTransactionHeader struct {
 	Version uint64 `json:"version"`
 	// TimestampSalt is accurate to the millisecond
 	TimestampSalt time.Time `json:"timestamp"`
-
-	InputCount     uint8 `json:"inputcount"`
-	FCTOutputCount uint8 `json:"fctoutcount"`
-	ECOutputCount  uint8 `json:"ecoutcount"`
 }
 
 // factoidTransactionIOs is used as a wrapper for an array of IOs to reuse the
@@ -281,11 +277,11 @@ func (f *FactoidTransaction) MarshalHeaderBinary() ([]byte, error) {
 	}
 	i += copy(data[i:], buf.Bytes()[2:])
 
-	data[i] = f.InputCount
+	data[i] = uint8(len(f.FCTInputs))
 	i += 1
-	data[i] = f.FCTOutputCount
+	data[i] = uint8(len(f.FCTOutputs))
 	i += 1
-	data[i] = f.ECOutputCount
+	data[i] = uint8(len(f.ECOutputs))
 	i += 1
 	return data, nil
 }
@@ -369,17 +365,17 @@ func (f *FactoidTransaction) Decode(data []byte) (i int, err error) {
 	ms := binary.BigEndian.Uint64(msdata)
 	f.TimestampSalt = time.Unix(0, int64(ms)*1e6)
 	i += 6
-	f.InputCount = data[i]
+	inputCount := uint8(data[i])
 	i += 1
-	f.FCTOutputCount = data[i]
+	fctOutputCount := uint8(data[i])
 	i += 1
-	f.ECOutputCount = data[i]
+	ecOutputCount := uint8(data[i])
 	i += 1
 
 	// Decode the body
 
 	// Decode the inputs
-	f.FCTInputs = make([]FactoidTransactionIO, f.InputCount)
+	f.FCTInputs = make([]FactoidTransactionIO, inputCount)
 	read, err := factoidTransactionIOs(f.FCTInputs).Decode(data[i:])
 	if err != nil {
 		return 0, err
@@ -387,7 +383,7 @@ func (f *FactoidTransaction) Decode(data []byte) (i int, err error) {
 	i += read
 
 	// Decode the FCT Outputs
-	f.FCTOutputs = make([]FactoidTransactionIO, f.FCTOutputCount)
+	f.FCTOutputs = make([]FactoidTransactionIO, fctOutputCount)
 	read, err = factoidTransactionIOs(f.FCTOutputs).Decode(data[i:])
 	if err != nil {
 		return 0, err
@@ -395,7 +391,7 @@ func (f *FactoidTransaction) Decode(data []byte) (i int, err error) {
 	i += read
 
 	// Decode the EC Outputs
-	f.ECOutputs = make([]FactoidTransactionIO, f.ECOutputCount)
+	f.ECOutputs = make([]FactoidTransactionIO, ecOutputCount)
 	read, err = factoidTransactionIOs(f.ECOutputs).Decode(data[i:])
 	if err != nil {
 		return 0, err
@@ -403,8 +399,8 @@ func (f *FactoidTransaction) Decode(data []byte) (i int, err error) {
 	i += read
 
 	// Decode the signature blocks, one per input
-	f.Signatures = make([]FactoidTransactionSignature, f.InputCount)
-	for c := uint8(0); c < f.InputCount; c++ {
+	f.Signatures = make([]FactoidTransactionSignature, len(f.FCTInputs))
+	for c := uint8(0); c < uint8(len(f.FCTInputs)); c++ {
 		// f.Signatures[i] = new(FactoidTransactionSignature)
 		read, err := f.Signatures[c].Decode(data[i:])
 		if err != nil {
