@@ -221,7 +221,8 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 	fb.Transactions = make([]FactoidTransaction, txCount)
 	var period int
 	for c := range fb.Transactions {
-		// Before each fct tx, we need to see if there is a marker byte that indicates a minute marker
+		// Before each fct tx, we need to see if there is a marker byte that
+		// indicates a minute marker
 		for data[i] == FBlockMinuteMarker {
 			if period > len(fb.endOfPeriod) {
 				return fmt.Errorf("too many minute markers")
@@ -319,7 +320,7 @@ func (fb *FBlock) MarshalBinaryHeader() ([]byte, error) {
 	binary.BigEndian.PutUint32(data[i:], fb.Height)
 	i += 4
 	i += copy(data[i:], expansionSize)
-	// Currently all expansion bytes are stored in the ExpansionBytes. So just write them out
+	// Currently all expansion bytes are stored in the ExpansionBytes.
 	i += copy(data[i:], fb.ExpansionBytes)
 	binary.BigEndian.PutUint32(data[i:], uint32(len(fb.Transactions)))
 	i += 4

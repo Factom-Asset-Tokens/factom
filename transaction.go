@@ -34,7 +34,10 @@ type FactoidTransactionHeader struct {
 	ECOutputCount  uint8 `json:"ecoutcount"`
 }
 
-type FactoidTransactionIOs []FactoidTransactionIO
+// factoidTransactionIOs is used as a wrapper for an array of IOs to reuse the
+// functionality. This is compared to writing your own loop to handle
+// lists of io behavior.
+type factoidTransactionIOs []FactoidTransactionIO
 
 type FactoidTransactionIO struct {
 	Amount uint64 `json:"amount"`
@@ -53,19 +56,21 @@ type FactoidTransactionSignature struct {
 // call to Get. IsPopulated returns false if f.FCTInputs, or f.Signatures are
 // nil, or if f.Timestamp is zero.
 func (f FactoidTransaction) IsPopulated() bool {
-	return f.FCTInputs != nil && // Although a coinbase has 0 inputs, this array should not be nil
+	return f.FCTInputs != nil && // This array should not be nil
 		f.Signatures != nil &&
 		!f.TimestampSalt.IsZero()
 }
 
 // IsPopulated returns true if s has already been successfully populated by a
-// call to Get. IsPopulated returns false if s.SignatureBlock or s.ReedeemCondition are nil
+// call to Get. IsPopulated returns false if s.SignatureBlock or
+// s.ReedeemCondition are nil
 func (s FactoidTransactionSignature) IsPopulated() bool {
 	return s.SignatureBlock != nil
 }
 
-// Valid returns if the inputs of the factoid transaction are properly signed by the redeem conditions.
-// It will also validate the total inputs is greater than the total outputs.
+// Valid returns if the inputs of the factoid transaction are properly signed
+// by the redeem conditions. It will also validate the total inputs is greater
+// than the total outputs.
 func (f *FactoidTransaction) Valid() bool {
 	if !f.IsPopulated() {
 		return false
@@ -103,19 +108,19 @@ func (f *FactoidTransaction) Valid() bool {
 }
 
 func (f *FactoidTransaction) TotalFCTInputs() (total uint64) {
-	return FactoidTransactionIOs(f.FCTInputs).TotalAmount()
+	return factoidTransactionIOs(f.FCTInputs).TotalAmount()
 }
 
 func (f *FactoidTransaction) TotalFCTOutputs() (total uint64) {
-	return FactoidTransactionIOs(f.FCTOutputs).TotalAmount()
+	return factoidTransactionIOs(f.FCTOutputs).TotalAmount()
 }
 
 // TotalECOutput is delimated in factoishis
 func (f *FactoidTransaction) TotalECOutput() (total uint64) {
-	return FactoidTransactionIOs(f.ECOutputs).TotalAmount()
+	return factoidTransactionIOs(f.ECOutputs).TotalAmount()
 }
 
-func (s FactoidTransactionIOs) TotalAmount() (total uint64) {
+func (s factoidTransactionIOs) TotalAmount() (total uint64) {
 	for _, io := range s {
 		total += io.Amount
 	}
@@ -126,8 +131,9 @@ func (s FactoidTransactionSignature) Validate(msg Bytes) bool {
 	return s.ReedeemCondition.Validate(msg, s.SignatureBlock)
 }
 
-// Get queries factomd for the entry corresponding to f.TransactionID, which must be not
-// nil. After a successful call all inputs, outputs, and the header will be populated
+// Get queries factomd for the entry corresponding to f.TransactionID, which
+// must be not nil. After a successful call all inputs, outputs, and
+// the header will be populated
 func (f *FactoidTransaction) Get(c *Client) error {
 	// TODO: Test this functionality
 	// If the TransactionID is nil then we have nothing to query for.
@@ -166,9 +172,9 @@ func (f *FactoidTransaction) Get(c *Client) error {
 	return nil
 }
 
-// ComputeTransactionID computes the txid for a given transaction. The txid is the sha256 of
-// the ledger fields in a factoid transaction. The ledger fields exclude the signature block of
-// the transaction
+// ComputeTransactionID computes the txid for a given transaction. The txid is
+// the sha256 of the ledger fields in a factoid transaction. The ledger fields
+// exclude the signature block of the transaction
 func (f *FactoidTransaction) ComputeTransactionID() (Bytes32, error) {
 	data, err := f.MarshalLedgerBinary()
 	if err != nil {
@@ -179,8 +185,8 @@ func (f *FactoidTransaction) ComputeTransactionID() (Bytes32, error) {
 	return txid, nil
 }
 
-// ComputeFullHash computes the fullhash for a given transaction. The fullhash is the sha256 of all
-// the fields in a factoid transaction.
+// ComputeFullHash computes the fullhash for a given transaction. The fullhash
+// is the sha256 of all the fields in a factoid transaction.
 func (f *FactoidTransaction) ComputeFullHash() (*Bytes32, error) {
 	data, err := f.MarshalBinary()
 	if err != nil {
@@ -191,16 +197,16 @@ func (f *FactoidTransaction) ComputeFullHash() (*Bytes32, error) {
 	return &txid, nil
 }
 
-// MarshalLedgerBinary marshals the transaction ledger fields to their binary representation.
-// This excludes the signature blocks
+// MarshalLedgerBinary marshals the transaction ledger fields to their
+// binary representation. This excludes the signature blocks
 func (f *FactoidTransaction) MarshalLedgerBinary() ([]byte, error) {
 	// TODO: More checks up front?
 	if !f.IsPopulated() {
 		return nil, fmt.Errorf("not populated")
 	}
 
-	// It's very difficult to know the size before marshaling, as each in/out has a varint
-	// so make the buffer at the end
+	// It's very difficult to know the size before marshaling, as
+	// each in/out has a varint so make the buffer at the end
 
 	// The header bytes
 	header, err := f.MarshalHeaderBinary()
@@ -209,19 +215,19 @@ func (f *FactoidTransaction) MarshalLedgerBinary() ([]byte, error) {
 	}
 
 	// Inputs
-	inputs, err := FactoidTransactionIOs(f.FCTInputs).MarshalBinary()
+	inputs, err := factoidTransactionIOs(f.FCTInputs).MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
 
 	// FCT Outputs
-	fctout, err := FactoidTransactionIOs(f.FCTOutputs).MarshalBinary()
+	fctout, err := factoidTransactionIOs(f.FCTOutputs).MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
 
 	// EC Outputs
-	ecout, err := FactoidTransactionIOs(f.ECOutputs).MarshalBinary()
+	ecout, err := factoidTransactionIOs(f.ECOutputs).MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
@@ -259,8 +265,8 @@ func (f *FactoidTransaction) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
-// MarshalHeaderBinary marshals the transaction's header to its binary representation. See
-// UnmarshalHeaderBinary for encoding details.
+// MarshalHeaderBinary marshals the transaction's header to its binary
+// representation. See UnmarshalHeaderBinary for encoding details.
 func (f *FactoidTransaction) MarshalHeaderBinary() ([]byte, error) {
 	version := varintf.Encode(f.Version)
 	data := make([]byte, TransactionHeadMinLen+len(version))
@@ -284,9 +290,9 @@ func (f *FactoidTransaction) MarshalHeaderBinary() ([]byte, error) {
 	return data, nil
 }
 
-// MarshalBinary marshals a set of transaction ios to its binary representation. See
-// UnmarshalBinary for encoding details.
-func (ios FactoidTransactionIOs) MarshalBinary() ([]byte, error) {
+// MarshalBinary marshals a set of transaction ios to its binary representation.
+// See UnmarshalBinary for encoding details.
+func (ios factoidTransactionIOs) MarshalBinary() ([]byte, error) {
 	var data []byte
 	for _, io := range ios {
 		iodata, err := io.MarshalBinary()
@@ -298,8 +304,8 @@ func (ios FactoidTransactionIOs) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
-// MarshalBinary marshals a transaction io to its binary representation. See
-// UnmarshalBinary for encoding details.
+// MarshalBinary marshals a transaction io to its binary representation.
+// See UnmarshalBinary for encoding details.
 func (io *FactoidTransactionIO) MarshalBinary() ([]byte, error) {
 	amount := varintf.Encode(io.Amount)
 	data := make([]byte, 32+len(amount))
@@ -309,8 +315,8 @@ func (io *FactoidTransactionIO) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
-// MarshalBinary marshals a transaction signature to its binary representation. See
-// UnmarshalBinary for encoding details.
+// MarshalBinary marshals a transaction signature to its binary representation.
+// See UnmarshalBinary for encoding details.
 func (s *FactoidTransactionSignature) MarshalBinary() ([]byte, error) {
 	if !s.IsPopulated() {
 		return nil, fmt.Errorf("not populated")
@@ -342,8 +348,8 @@ const (
 // Decode will consume as many bytes as necessary to unmarshal the factoid
 // transaction. It will return the number of bytes read and an error.
 func (f *FactoidTransaction) Decode(data []byte) (i int, err error) {
-	// Because the length of an FactoidTransaction is hard to define up front, we will catch
-	// any sort of out of bound errors in a recover
+	// Because the length of an FactoidTransaction is hard to define up front,
+	// we will catch any sort of out of bound errors in a recover
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("failed to unmarshal")
@@ -374,7 +380,7 @@ func (f *FactoidTransaction) Decode(data []byte) (i int, err error) {
 
 	// Decode the inputs
 	f.FCTInputs = make([]FactoidTransactionIO, f.InputCount)
-	read, err := FactoidTransactionIOs(f.FCTInputs).Decode(data[i:])
+	read, err := factoidTransactionIOs(f.FCTInputs).Decode(data[i:])
 	if err != nil {
 		return 0, err
 	}
@@ -382,7 +388,7 @@ func (f *FactoidTransaction) Decode(data []byte) (i int, err error) {
 
 	// Decode the FCT Outputs
 	f.FCTOutputs = make([]FactoidTransactionIO, f.FCTOutputCount)
-	read, err = FactoidTransactionIOs(f.FCTOutputs).Decode(data[i:])
+	read, err = factoidTransactionIOs(f.FCTOutputs).Decode(data[i:])
 	if err != nil {
 		return 0, err
 	}
@@ -390,7 +396,7 @@ func (f *FactoidTransaction) Decode(data []byte) (i int, err error) {
 
 	// Decode the EC Outputs
 	f.ECOutputs = make([]FactoidTransactionIO, f.ECOutputCount)
-	read, err = FactoidTransactionIOs(f.ECOutputs).Decode(data[i:])
+	read, err = factoidTransactionIOs(f.ECOutputs).Decode(data[i:])
 	if err != nil {
 		return 0, err
 	}
@@ -426,7 +432,7 @@ func (f *FactoidTransaction) UnmarshalBinary(data []byte) error {
 // Decode takes a given input and decodes the set of bytes needed to populate
 // the set of factoid transactions ios. The set length should be preset before
 // calling this function. It will return how many bytes it read and return an error.
-func (ios FactoidTransactionIOs) Decode(data []byte) (int, error) {
+func (ios factoidTransactionIOs) Decode(data []byte) (int, error) {
 	var i int
 	for c := range ios {
 		read, err := ios[c].Decode(data[i:])
