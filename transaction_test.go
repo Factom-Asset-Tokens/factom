@@ -215,6 +215,31 @@ func TestFactoidTransaction_UnmarshalBinary(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("UnmarshalBinary/TransactionIO", func(t *testing.T) {
+		// Test incorrect data
+		data := make([]byte, 32) // 1 byte short
+		var io FactoidTransactionIO
+		_, err := io.Decode(data)
+		if err == nil || err.Error() != "not enough bytes to decode factoidtx" {
+			t.Errorf("error not as expected")
+		}
+
+		// Not enough bytes
+		data = make([]byte, 15)
+		_, err = io.Decode(data)
+		if err == nil || err.Error() != "not enough bytes to decode factoidtx" {
+			t.Errorf("error not as expected")
+		}
+
+		// Empty bytes
+		data = make([]byte, 0) // 0 bytes
+		_, err = io.Decode(data)
+		if err == nil || err.Error() != "not enough bytes to decode factoidtx" {
+			t.Errorf("error not as expected")
+		}
+
+	})
 }
 
 func TestFactoidTransaction_IsPopulated(t *testing.T) {

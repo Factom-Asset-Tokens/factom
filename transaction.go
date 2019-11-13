@@ -446,7 +446,14 @@ func (ios factoidTransactionIOs) Decode(data []byte) (int, error) {
 // A FactoidTransactionIO includes an amount and an address.
 func (io *FactoidTransactionIO) Decode(data []byte) (int, error) {
 	amount, i := varintf.Decode(data)
+	if i == -1 {
+		return 0, fmt.Errorf("not enough bytes to decode factoidtx")
+	}
 	io.Amount = amount
+
+	if len(data)-i < 32 {
+		return 0, fmt.Errorf("not enough bytes to decode factoidtx")
+	}
 	var tmp Bytes32 // TODO: Fix this
 	copy(tmp[:], data[i:i+32])
 	io.Address = tmp
