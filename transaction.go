@@ -335,14 +335,6 @@ const (
 // Decode will consume as many bytes as necessary to unmarshal the factoid
 // transaction. It will return the number of bytes read and an error.
 func (f *FactoidTransaction) Decode(data []byte) (i int, err error) {
-	// Because the length of an FactoidTransaction is hard to define up front,
-	// we will catch any sort of out of bound errors in a recover
-	//defer func() {
-	//	if r := recover(); r != nil {
-	//		err = fmt.Errorf("failed to unmarshal")
-	//	}
-	//}()
-
 	if len(data) < TransactionTotalMinLen {
 		return 0, fmt.Errorf("insufficient length")
 	}

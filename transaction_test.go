@@ -204,8 +204,8 @@ func TestFactoidTransaction_UnmarshalBinary(t *testing.T) {
 
 	// To ensure there is not panics and all errors are caught
 	t.Run("UnmarshalBinary/Transaction", func(t *testing.T) {
-		for i := 0; i < 1000; i++ {
-			d := make([]byte, rand.Intn(500))
+		for i := 0; i < 10000; i++ {
+			d := make([]byte, rand.Intn(1000))
 			rand.Read(d)
 
 			f := FactoidTransaction{}
