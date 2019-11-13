@@ -160,6 +160,16 @@ var txUnmarshalBinaryTests = []struct {
 			""),
 		Error: "insufficient length",
 	},
+	{
+		Name: "invalid (txid set is incorrect)",
+		Data: NewBytes(
+			"020162606d234b01010092d097e400304d80538e27505d44d5ff0ada6a9d420d93a9994da75f0763c12c827b61666892d0969560b11e86b4894661091c16f511a2f1000099b54dcf73bc7bcacba6e3fe2f547c83010fd93026041de6387d2dcef0917c06288e690fa7652c20f044746e787b06b2bdf7f1ec53e7e5695667b071b4e3ae65c09c804e164e971ac4717c7a8d0b61053f831f605e0adbf98d19613b00797962beb899a8d9472e187b17444159e74b2f0e"),
+		TxID: NewBytes32(
+			"aa7d9e8a7464aa272192e499bb0cdc720288884bfd5546bab8dcb8892527fc7b"),
+		FullHash: NewBytes32(
+			"59b293f8ade00f7f51d42762b864e287ea31d195563e1970356fe8c1d49fce97"),
+		Error: "invalid txid",
+	},
 }
 
 func TestFactoidTransaction_UnmarshalBinary(t *testing.T) {
@@ -168,6 +178,10 @@ func TestFactoidTransaction_UnmarshalBinary(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
 			f := FactoidTransaction{}
+			if !test.TxID.IsZero() {
+				f.TransactionID = &test.TxID
+			}
+
 			read, err := f.Decode(test.Data)
 			if len(test.Error) == 0 {
 				require.NoError(err)

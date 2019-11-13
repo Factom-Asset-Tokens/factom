@@ -141,7 +141,6 @@ func (f *FactoidTransaction) Get(c *Client) error {
 	if f.IsPopulated() {
 		return nil
 	}
-	requestTxId := f.TransactionID
 
 	params := struct {
 		Hash *Bytes32 `json:"hash"`
@@ -155,14 +154,6 @@ func (f *FactoidTransaction) Get(c *Client) error {
 
 	if err := f.UnmarshalBinary(result.Data); err != nil {
 		return err
-	}
-
-	txid, err := f.ComputeTransactionID()
-	if err != nil {
-		return err
-	}
-	if txid != *requestTxId {
-		return fmt.Errorf("invalid txid")
 	}
 
 	return nil
@@ -413,6 +404,14 @@ func (f *FactoidTransaction) Decode(data []byte) (i int, err error) {
 	if err != nil {
 		return 0, err
 	}
+
+	// If the txid is already set, validate the txid
+	if f.TransactionID != nil {
+		if *f.TransactionID != txid {
+			return 0, fmt.Errorf("invalid txid")
+		}
+	}
+
 	f.TransactionID = &txid
 
 	return i, err

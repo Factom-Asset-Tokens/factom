@@ -33,10 +33,6 @@ import (
 	"github.com/Factom-Asset-Tokens/factom/varintf"
 )
 
-const (
-	FBlockMinuteMarker = 0x00
-)
-
 // FBlock represents a Factom Factoid Block
 type FBlock struct {
 	// Computed Fields
@@ -141,6 +137,12 @@ const (
 	FBlockMinTotalLen = FBlockMinHeaderLen
 )
 
+const (
+	// Minute markers indicate at which minute in the block the
+	// factoid transactions were processed.
+	FBlockMinuteMarker = 0x00
+)
+
 // UnmarshalBinary unmarshals raw directory block data.
 //
 // Header
@@ -182,14 +184,19 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 		return fmt.Errorf("invalid factoid chainid")
 	}
 	i := 32
+
 	fb.BodyMR = new(Bytes32)
 	i += copy(fb.BodyMR[:], data[i:i+len(fb.BodyMR)])
+
 	fb.PrevKeyMR = new(Bytes32)
 	i += copy(fb.PrevKeyMR[:], data[i:i+len(fb.PrevKeyMR)])
+
 	fb.PrevLedgerKeyMR = new(Bytes32)
 	i += copy(fb.PrevLedgerKeyMR[:], data[i:i+len(fb.PrevLedgerKeyMR)])
+
 	fb.ExchangeRate = binary.BigEndian.Uint64(data[i : i+8])
 	i += 8
+
 	fb.Height = binary.BigEndian.Uint32(data[i : i+4])
 	i += 4
 
