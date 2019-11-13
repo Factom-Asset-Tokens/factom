@@ -235,7 +235,7 @@ func TestFactoidTransaction_UnmarshalBinary(t *testing.T) {
 		// Empty bytes
 		data = make([]byte, 0) // 0 bytes
 		_, err = io.Decode(data)
-		if err == nil || err.Error() != "not enough bytes to decode factoidtx" {
+		if err == nil || err.Error() != "amount is not a valid varint" {
 			t.Errorf("error not as expected")
 		}
 

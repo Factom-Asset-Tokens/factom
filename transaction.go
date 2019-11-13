@@ -337,11 +337,11 @@ const (
 func (f *FactoidTransaction) Decode(data []byte) (i int, err error) {
 	// Because the length of an FactoidTransaction is hard to define up front,
 	// we will catch any sort of out of bound errors in a recover
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("failed to unmarshal")
-		}
-	}()
+	//defer func() {
+	//	if r := recover(); r != nil {
+	//		err = fmt.Errorf("failed to unmarshal")
+	//	}
+	//}()
 
 	if len(data) < TransactionTotalMinLen {
 		return 0, fmt.Errorf("insufficient length")
@@ -349,9 +349,16 @@ func (f *FactoidTransaction) Decode(data []byte) (i int, err error) {
 
 	// Decode header
 	version, i := varintf.Decode(data)
+	if i < 0 {
+		return 0, fmt.Errorf("version bytes invalid")
+	}
 	f.Version = version
 
 	msdata := make([]byte, 8)
+	// TS + counts length check
+	if len(data) < i+(6+3) {
+		return 0, fmt.Errorf("not enough bytes to decode tx")
+	}
 	copy(msdata[2:], data[i:i+6])
 	ms := binary.BigEndian.Uint64(msdata)
 	f.TimestampSalt = time.Unix(0, int64(ms)*1e6)
@@ -446,8 +453,8 @@ func (ios factoidTransactionIOs) Decode(data []byte) (int, error) {
 // A FactoidTransactionIO includes an amount and an address.
 func (io *FactoidTransactionIO) Decode(data []byte) (int, error) {
 	amount, i := varintf.Decode(data)
-	if i == -1 {
-		return 0, fmt.Errorf("not enough bytes to decode factoidtx")
+	if i < 0 {
+		return 0, fmt.Errorf("amount is not a valid varint")
 	}
 	io.Amount = amount
 
