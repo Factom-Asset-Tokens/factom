@@ -15,19 +15,19 @@ type FactoidTransaction struct {
 	// TODO: The header is usually at the top level, is this ok?
 	FactoidTransactionHeader
 
-	FCTInputs  []FactoidTransactionIO        `json:"inputs"`
-	FCTOutputs []FactoidTransactionIO        `json:"fctoutputs"`
-	ECOutputs  []FactoidTransactionIO        `json:"ecoutputs"`
-	Signatures []FactoidTransactionSignature `json:"signatures"`
+	FCTInputs  []FactoidTransactionIO
+	FCTOutputs []FactoidTransactionIO
+	ECOutputs  []FactoidTransactionIO
+	Signatures []FactoidTransactionSignature
 }
 
 type FactoidTransactionHeader struct {
 	// TransactionID is not in the marshalled binary
-	TransactionID *Bytes32 `json:"txid"`
+	TransactionID *Bytes32
 
-	Version uint64 `json:"version"`
+	Version uint64
 	// TimestampSalt is accurate to the millisecond
-	TimestampSalt time.Time `json:"timestamp"`
+	TimestampSalt time.Time
 }
 
 // factoidTransactionIOs is used as a wrapper for an array of IOs to reuse the
@@ -36,16 +36,16 @@ type FactoidTransactionHeader struct {
 type factoidTransactionIOs []FactoidTransactionIO
 
 type FactoidTransactionIO struct {
-	Amount uint64 `json:"amount"`
+	Amount uint64
 	// Address can be an SHA256d(RCD) for FCT in/out, or a public key for EC out.
 	// It is the encoded bytes into the human readable addresses
-	Address Bytes32 `json:"address"`
+	Address Bytes32
 }
 
 type FactoidTransactionSignature struct {
 	// SHA256d(RCD) == FactoidIOAddress for the inputs
-	ReedeemCondition RCD1  `json:"rcd"`
-	SignatureBlock   Bytes `json:"amount"`
+	ReedeemCondition RCD1
+	SignatureBlock   Bytes
 }
 
 // IsPopulated returns true if f has already been successfully populated by a

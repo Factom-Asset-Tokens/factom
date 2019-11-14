@@ -35,26 +35,26 @@ import (
 // FBlock represents a Factom Factoid Block
 type FBlock struct {
 	// Computed Fields
-	KeyMR       *Bytes32 `json:"keymr"`
-	LedgerKeyMR *Bytes32 `json:"ledgerkeymr"`
+	KeyMR       *Bytes32
+	LedgerKeyMR *Bytes32
 
 	// Header Fields
-	BodyMR          *Bytes32 `json:"bodymr"`
-	PrevKeyMR       *Bytes32 `json:"prevkeymr"`
-	PrevLedgerKeyMR *Bytes32 `json:"prevkeymr"`
+	BodyMR          *Bytes32
+	PrevKeyMR       *Bytes32
+	PrevLedgerKeyMR *Bytes32
 
-	ExchangeRate uint64 `json:"exchrate"`
-	Height       uint32 `json:"dbheight"`
+	ExchangeRate uint64
+	Height       uint32
 
 	// ExpansionBytes is the expansion space in the fblock. If we do not
 	// understand the expansion, we just store the raw bytes
-	ExpansionBytes Bytes `json:"expansiondata"`
+	ExpansionBytes Bytes
 
 	// Number of bytes contained in the body
-	BodySize uint32 `json:"bodysize"`
+	bodySize uint32
 
 	// Body Fields
-	Transactions []FactoidTransaction `json:"transactions"`
+	Transactions []FactoidTransaction
 
 	// Other fields
 	//
@@ -207,7 +207,7 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 
 	txCount := binary.BigEndian.Uint32(data[i : i+4])
 	i += 4
-	fb.BodySize = binary.BigEndian.Uint32(data[i : i+4])
+	fb.bodySize = binary.BigEndian.Uint32(data[i : i+4])
 	i += 4
 
 	// Check the txcount is at least somewhat reasonable. This check
@@ -310,7 +310,7 @@ func (fb *FBlock) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 
-	data := make([]byte, len(header)+int(fb.BodySize))
+	data := make([]byte, len(header)+int(fb.bodySize))
 
 	var i int
 	i += copy(data[i:], header)
@@ -364,7 +364,7 @@ func (fb *FBlock) MarshalBinaryHeader() ([]byte, error) {
 	i += copy(data[i:], fb.ExpansionBytes)
 	binary.BigEndian.PutUint32(data[i:], uint32(len(fb.Transactions)))
 	i += 4
-	binary.BigEndian.PutUint32(data[i:], fb.BodySize)
+	binary.BigEndian.PutUint32(data[i:], fb.bodySize)
 	i += 4
 
 	return data, nil
