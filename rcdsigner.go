@@ -45,6 +45,8 @@ func ValidateRCD(rcd, sig, msg []byte) (Bytes32, error) {
 	switch rcd[0] {
 	case RCDType01:
 		validateRCD = ValidateRCD01
+	default:
+		return Bytes32{}, fmt.Errorf("unsupported RCD")
 	}
 	return validateRCD(rcd, sig, msg)
 }
