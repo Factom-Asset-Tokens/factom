@@ -84,18 +84,6 @@ func (fb *FBlock) Get(c *Client) (err error) {
 	}
 
 	if fb.KeyMR != nil {
-		orig := fb.KeyMR
-		defer func() { // Ensure we got the block we asked for
-			if err != nil {
-				return
-			}
-
-			if fb.KeyMR != nil && *orig != *fb.KeyMR {
-				err = fmt.Errorf("invalid key merkle root")
-				return
-			}
-		}()
-
 		params := struct {
 			Hash *Bytes32 `json:"hash"`
 		}{Hash: fb.KeyMR}
@@ -164,17 +152,6 @@ const (
 //
 // https://github.com/FactomProject/FactomDocs/blob/master/factomDataStructureDetails.md#factoid-block
 func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
-	// Because the length of an FBlock is hard to define up front, we will catch
-	// any sort of out of bound errors in a recover
-	// TODO: Currently the unmarshal test with random data will panic here.
-	//		We need to catch all the panic conditions.
-	//defer func() {
-	//	if r := recover(); r != nil {
-	//		err = fmt.Errorf("failed to unmarshal")
-	//	}
-	//}()
-
-	// TODO: More length checks up front
 	if len(data) < FBlockMinTotalLen {
 		return fmt.Errorf("insufficient length")
 	}
@@ -186,13 +163,13 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 	i := 32
 
 	fb.BodyMR = new(Bytes32)
-	i += copy(fb.BodyMR[:], data[i:i+len(fb.BodyMR)])
+	i += copy(fb.BodyMR[:], data[i:])
 
 	fb.PrevKeyMR = new(Bytes32)
-	i += copy(fb.PrevKeyMR[:], data[i:i+len(fb.PrevKeyMR)])
+	i += copy(fb.PrevKeyMR[:], data[i:])
 
 	fb.PrevLedgerKeyMR = new(Bytes32)
-	i += copy(fb.PrevLedgerKeyMR[:], data[i:i+len(fb.PrevLedgerKeyMR)])
+	i += copy(fb.PrevLedgerKeyMR[:], data[i:])
 
 	fb.ExchangeRate = binary.BigEndian.Uint64(data[i : i+8])
 	i += 8
@@ -217,13 +194,27 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 	// For these type assertions to fail on a 32 bit system, we would need a
 	// 4gb factoid block.
 	fb.ExpansionBytes = make([]byte, expansionSize)
-	copy(fb.ExpansionBytes, data[i:i+int(expansionSize)])
+	if uint64(len(data[i:])) < expansionSize {
+		return fmt.Errorf("expansion size is %d, only %d bytes exist", expansionSize, len(data[i:]))
+	}
+	copy(fb.ExpansionBytes, data[i:])
 	i += int(expansionSize)
+
+	// Check the next two slice accesses won't be out of bounds
+	if len(data[i:]) < 8 {
+		return fmt.Errorf("ran out of bytes")
+	}
 
 	txCount := binary.BigEndian.Uint32(data[i : i+4])
 	i += 4
 	fb.BodySize = binary.BigEndian.Uint32(data[i : i+4])
 	i += 4
+
+	// Check the txcount is at least somewhat reasonable. This check
+	// is not perfect, given txs are variable in size.
+	if uint64(len(data[i:])) < uint64(txCount)*TransactionTotalMinLen {
+		return fmt.Errorf("not enough bytes")
+	}
 
 	fb.Transactions = make([]FactoidTransaction, txCount)
 	var period int
@@ -262,6 +253,13 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 	ledgerMr, err := fb.ComputeLedgerKeyMR()
 	if err != nil {
 		return err
+	}
+
+	// Already set, check it matches
+	if fb.KeyMR != nil {
+		if keyMr != *fb.KeyMR {
+			return fmt.Errorf("invalid keymr")
+		}
 	}
 
 	fb.KeyMR = &keyMr

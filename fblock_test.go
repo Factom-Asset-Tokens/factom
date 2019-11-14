@@ -23,7 +23,6 @@
 package factom_test
 
 import (
-	"fmt"
 	"math/rand"
 	"testing"
 
@@ -141,7 +140,6 @@ func TestFactoidBlock_UnmarshalBinary(t *testing.T) {
 			if err == nil {
 				t.Errorf("expected an error")
 			}
-			fmt.Println(err)
 		}
 	})
 }
