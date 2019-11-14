@@ -312,10 +312,8 @@ func GenerateCommit(es EsAddress, entrydata []byte, hash *Bytes32,
 
 	i := 1 // Skip version byte
 
-	// ms is a timestamp salt in milliseconds randomly chosen from sometime
-	// in the past hour.
-	ms := time.Now().Add(
-		time.Duration(-rand.Int63n(int64(1*time.Hour)))).UnixNano() / 1e6
+	// ms is a timestamp salt in milliseconds.
+	ms := time.Now().Unix()*1e3 + rand.Int63n(1000)
 	i += putInt48(commit[i:], ms)
 
 	if newChain {
