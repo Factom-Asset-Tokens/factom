@@ -77,7 +77,7 @@ func (fb FBlock) IsPopulated() bool {
 
 // Get queries factomd for the Factoid Block at fb.Header.Height or fb.KeyMR.
 // After a successful call, the Transactions will all be populated.
-func (fb *FBlock) Get(c *Client) (err error) {
+func (fb *FBlock) Get(ctx context.Context, c *Client) (err error) {
 	if fb.IsPopulated() {
 		return nil
 	}
@@ -89,7 +89,7 @@ func (fb *FBlock) Get(c *Client) (err error) {
 		var result struct {
 			Data Bytes `json:"data"`
 		}
-		if err := c.FactomdRequest(context.Background(), "raw-data", params, &result); err != nil {
+		if err := c.FactomdRequest(ctx, "raw-data", params, &result); err != nil {
 			return err
 		}
 		return fb.UnmarshalBinary(result.Data)
@@ -102,7 +102,7 @@ func (fb *FBlock) Get(c *Client) (err error) {
 		// We will ignore all the other fields, and just unmarshal from the raw.
 		RawData Bytes `json:"rawdata"`
 	}{}
-	if err := c.FactomdRequest(context.Background(), "fblock-by-height", params, &result); err != nil {
+	if err := c.FactomdRequest(ctx, "fblock-by-height", params, &result); err != nil {
 		return err
 	}
 
@@ -304,17 +304,29 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 }
 
 func (fb *FBlock) MarshalBinary() ([]byte, error) {
-	// Header has variable size
-	header, err := fb.MarshalBinaryHeader() // This checks for populated
-	if err != nil {
-		return nil, err
-	}
-
-	data := make([]byte, len(header)+int(fb.bodySize))
-
+	// Header
+	expansionSize := varintf.Encode(uint64(len(fb.ExpansionBytes)))
+	data := make([]byte, FBlockMinHeaderLen+len(expansionSize)+len(fb.ExpansionBytes)+int(fb.bodySize))
 	var i int
-	i += copy(data[i:], header)
+	fBlockChain := FBlockChainID()
+	i += copy(data[i:], fBlockChain[:])
+	i += copy(data[i:], fb.BodyMR[:])
+	i += copy(data[i:], fb.PrevKeyMR[:])
+	i += copy(data[i:], fb.PrevLedgerKeyMR[:])
 
+	binary.BigEndian.PutUint64(data[i:], fb.ExchangeRate)
+	i += 8
+	binary.BigEndian.PutUint32(data[i:], fb.Height)
+	i += 4
+	i += copy(data[i:], expansionSize)
+	// Currently all expansion bytes are stored in the ExpansionBytes.
+	i += copy(data[i:], fb.ExpansionBytes)
+	binary.BigEndian.PutUint32(data[i:], uint32(len(fb.Transactions)))
+	i += 4
+	binary.BigEndian.PutUint32(data[i:], fb.bodySize)
+	i += 4
+
+	// Body
 	var period int
 	for c, transaction := range fb.Transactions {
 		for period < len(fb.endOfPeriod) && // If minute marked remain to be written
@@ -341,47 +353,10 @@ func (fb *FBlock) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
-func (fb *FBlock) MarshalBinaryHeader() ([]byte, error) {
-	if !fb.IsPopulated() {
-		return nil, fmt.Errorf("not populated")
-	}
-
-	expansionSize := varintf.Encode(uint64(len(fb.ExpansionBytes)))
-	data := make([]byte, FBlockMinHeaderLen+len(expansionSize)+len(fb.ExpansionBytes))
-	var i int
-	fBlockChain := FBlockChainID()
-	i += copy(data[i:], fBlockChain[:])
-	i += copy(data[i:], fb.BodyMR[:])
-	i += copy(data[i:], fb.PrevKeyMR[:])
-	i += copy(data[i:], fb.PrevLedgerKeyMR[:])
-
-	binary.BigEndian.PutUint64(data[i:], fb.ExchangeRate)
-	i += 8
-	binary.BigEndian.PutUint32(data[i:], fb.Height)
-	i += 4
-	i += copy(data[i:], expansionSize)
-	// Currently all expansion bytes are stored in the ExpansionBytes.
-	i += copy(data[i:], fb.ExpansionBytes)
-	binary.BigEndian.PutUint32(data[i:], uint32(len(fb.Transactions)))
-	i += 4
-	binary.BigEndian.PutUint32(data[i:], fb.bodySize)
-	i += 4
-
-	return data, nil
-}
-
 func (fb FBlock) ComputeFullHash() (Bytes32, error) {
 	data, err := fb.MarshalBinary()
 	if err != nil {
 		return Bytes32{}, err
 	}
 	return sha256.Sum256(data), nil
-}
-
-func (fb FBlock) ComputeHeaderHash() (Bytes32, error) {
-	header, err := fb.MarshalBinaryHeader()
-	if err != nil {
-		return Bytes32{}, err
-	}
-	return sha256.Sum256(header), nil
 }

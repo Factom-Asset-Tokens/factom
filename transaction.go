@@ -130,7 +130,7 @@ func (s FactoidTransactionSignature) Validate(msg Bytes) bool {
 // Get queries factomd for the entry corresponding to f.TransactionID, which
 // must be not nil. After a successful call all inputs, outputs, and
 // the header will be populated
-func (f *FactoidTransaction) Get(c *Client) error {
+func (f *FactoidTransaction) Get(ctx context.Context, c *Client) error {
 	// TODO: Test this functionality
 	// If the TransactionID is nil then we have nothing to query for.
 	if f.TransactionID == nil {
@@ -148,7 +148,7 @@ func (f *FactoidTransaction) Get(c *Client) error {
 	var result struct {
 		Data Bytes `json:"data"`
 	}
-	if err := c.FactomdRequest(context.Background(), "raw-data", params, &result); err != nil {
+	if err := c.FactomdRequest(ctx, "raw-data", params, &result); err != nil {
 		return err
 	}
 

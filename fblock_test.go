@@ -126,7 +126,7 @@ func TestFactoidBlock_UnmarshalBinary(t *testing.T) {
 			}{test.Data})
 			factomClient := NewClient()
 			factomClient.Factomd.Client = *cl
-			err := f.Get(factomClient)
+			err := f.Get(nil, factomClient)
 			require.NoError(err)
 
 			assert.Equal(test.KeyMr, *f.KeyMR)
