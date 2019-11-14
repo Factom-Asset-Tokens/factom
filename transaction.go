@@ -168,7 +168,11 @@ func (f *FactoidTransaction) ComputeTransactionID() (Bytes32, error) {
 		return Bytes32{}, err
 	}
 
-	txid := Bytes32(sha256.Sum256(data))
+	return f.computeTransactionID(data)
+}
+
+func (f *FactoidTransaction) computeTransactionID(ledgerBinary Bytes) (Bytes32, error) {
+	txid := Bytes32(sha256.Sum256(ledgerBinary))
 	return txid, nil
 }
 
@@ -388,6 +392,10 @@ func (f *FactoidTransaction) Decode(data []byte) (i int, err error) {
 	}
 	i += read
 
+	// All data minus the signatures is the needed binary data to compute
+	// the txid
+	ledgerData := data[:i]
+
 	// Decode the signature blocks, one per input
 	f.Signatures = make([]FactoidTransactionSignature, len(f.FCTInputs))
 	for c := uint8(0); c < uint8(len(f.FCTInputs)); c++ {
@@ -399,7 +407,7 @@ func (f *FactoidTransaction) Decode(data []byte) (i int, err error) {
 		i += read
 	}
 
-	txid, err := f.ComputeTransactionID()
+	txid, err := f.computeTransactionID(ledgerData)
 	if err != nil {
 		return 0, err
 	}
