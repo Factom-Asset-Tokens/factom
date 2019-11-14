@@ -85,6 +85,10 @@ func (r RCD1) RCD() []byte {
 	return data
 }
 
+func (r RCD1) Length() int {
+	return RCDType1Len
+}
+
 // MarshalBinary marshals the rcd type to its binary representation. See
 // UnmarshalBinary for encoding details.
 func (r RCD1) MarshalBinary() ([]byte, error) {

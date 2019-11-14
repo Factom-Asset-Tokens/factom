@@ -160,6 +160,7 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 	if bytes.Compare(data[:32], expFChain[:]) != 0 {
 		return fmt.Errorf("invalid factoid chainid")
 	}
+
 	i := 32
 
 	fb.BodyMR = new(Bytes32)
@@ -216,6 +217,11 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 		return fmt.Errorf("not enough bytes")
 	}
 
+	// Header is all data we've read so far
+	headerHash := sha256.Sum256(data[:i])
+	bodyMRElements := make([][]byte, int(txCount)+len(fb.endOfPeriod))
+	bodyLedgerMRElements := make([][]byte, int(txCount)+len(fb.endOfPeriod))
+
 	fb.Transactions = make([]FactoidTransaction, txCount)
 	var period int
 	for c := range fb.Transactions {
@@ -226,16 +232,35 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 				return fmt.Errorf("too many minute markers")
 			}
 			fb.endOfPeriod[period] = c
+			bodyMRElements[c+period] = []byte{FBlockMinuteMarker}
+			bodyLedgerMRElements[c+period] = []byte{FBlockMinuteMarker}
 			period++ // The next period encountered will be the next minute
 			i += 1
 		}
 
-		// fb.Transactions[c] = new(FactoidTransaction)
 		read, err := fb.Transactions[c].Decode(data[i:])
 		if err != nil {
 			return err
 		}
+
+		// Append the elements for MR calculation
+		bodyMRElements[c+period] = data[i : i+read]
+		// Calc the signature size
+		var sigSize int
+		for _, o := range fb.Transactions[c].Signatures {
+			sigSize += o.ReedeemCondition.Length() + o.ReedeemCondition.SignatureBlockSize()
+		}
+		bodyLedgerMRElements[c+period] = data[i : i+(read-sigSize)]
+
 		i += read
+	}
+
+	// Finish the minute markers
+	for period < len(fb.endOfPeriod) {
+		period++
+		idx := int(txCount) + period - 1
+		bodyMRElements[idx] = []byte{FBlockMinuteMarker}
+		bodyLedgerMRElements[idx] = []byte{FBlockMinuteMarker}
 	}
 
 	// If we have not hit the end of our periods, a single byte will remain
@@ -245,12 +270,23 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 		i += 1
 	}
 
-	// Set out computed fields
-	keyMr, err := fb.ComputeKeyMR()
+	// Merkle Root Calculations
+	bodyMR, err := ComputeFBlockBodyMR(bodyMRElements)
 	if err != nil {
 		return err
 	}
-	ledgerMr, err := fb.ComputeLedgerKeyMR()
+
+	bodyLedgerMR, err := ComputeFBlockBodyMR(bodyLedgerMRElements)
+	if err != nil {
+		return err
+	}
+
+	// Set out computed fields
+	keyMr, err := ComputeFBlockKeyMR([][]byte{headerHash[:], bodyMR[:]})
+	if err != nil {
+		return err
+	}
+	ledgerMr, err := ComputeFBlockKeyMR([][]byte{bodyLedgerMR[:], headerHash[:]})
 	if err != nil {
 		return err
 	}

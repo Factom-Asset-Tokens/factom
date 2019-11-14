@@ -17,6 +17,30 @@ func ComputeEBlockHeaderHash(data []byte) Bytes32 {
 	return sha256.Sum256(data[:EBlockHeaderLen])
 }
 
+func ComputeFBlockKeyMR(elements [][]byte) (Bytes32, error) {
+	tree := merkle.NewTreeWithOpts(merkle.TreeOptions{DoubleOddNodes: true, DisableHashLeaves: true})
+	if err := tree.Generate(elements, sha256.New()); err != nil {
+		return Bytes32{}, err
+	}
+	root := tree.Root()
+	var keyMR Bytes32
+	copy(keyMR[:], root.Hash)
+	return keyMR, nil
+}
+
+// ComputeFBlockBodyMR returns the merkle root of the tree created with
+// elements as leaves, where the leaves are hashed.
+func ComputeFBlockBodyMR(elements [][]byte) (Bytes32, error) {
+	tree := merkle.NewTreeWithOpts(merkle.TreeOptions{DoubleOddNodes: true})
+	if err := tree.Generate(elements, sha256.New()); err != nil {
+		return Bytes32{}, err
+	}
+	root := tree.Root()
+	var bodyMR Bytes32
+	copy(bodyMR[:], root.Hash)
+	return bodyMR, nil
+}
+
 // ComputeDBlockBodyMR returns the merkle root of the tree created with
 // elements as leaves, where the leaves are hashed.
 func ComputeDBlockBodyMR(elements [][]byte) (Bytes32, error) {
