@@ -199,7 +199,6 @@ func TestIDKey(t *testing.T) {
 		sk, _ := NewSK{{.ID}}Key(sk{{.ID}}KeyStr)
 		assert := assert.New(t)
                 assert.Equal(id, sk.ID{{.ID}}Key())
-		assert.Equal(id.RCDHash(), sk.RCDHash(), "RCDHash")
 	})
 {{end}}
 

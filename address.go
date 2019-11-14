@@ -426,18 +426,14 @@ func sha256d(data []byte) [sha256.Size]byte {
 	return sha256.Sum256(hash[:])
 }
 
-const (
-	// RCDType is the magic number identifying the currenctly accepted RCD.
-	RCDType byte = 0x01
-	// RCDSize is the size of the RCD.
-	RCDSize = ed25519.PublicKeySize + 1
-	// SignatureSize is the size of the ed25519 signatures.
-	SignatureSize = ed25519.SignatureSize
-)
-
 // RCD computes the RCD for adr.
 func (adr FsAddress) RCD() []byte {
-	return append([]byte{RCDType}, adr.PublicKey()[:]...)
+	return append([]byte{RCDType01}, adr.PublicKey()[:]...)
+}
+
+// Sign the msg.
+func (adr FsAddress) Sign(msg []byte) []byte {
+	return ed25519.Sign(adr.PrivateKey(), msg)
 }
 
 // PublicKey returns the ed25519.PublicKey for adr.

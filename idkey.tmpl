@@ -174,22 +174,17 @@ func (key *SK{{.ID}}Key) UnmarshalText(text []byte) error {
 
 // ID{{.ID}}Key computes the ID{{.ID}}Key corresponding to key.
 func (key SK{{.ID}}Key) ID{{.ID}}Key() ID{{.ID}}Key {
-	return key.RCDHash()
-}
-
-// RCDHash returns the RCD hash encoded in key.
-func (key ID{{.ID}}Key) RCDHash() [sha256.Size]byte {
-	return key
-}
-
-// RCDHash computes the RCD hash corresponding to key.
-func (key SK{{.ID}}Key) RCDHash() [sha256.Size]byte {
 	return sha256d(key.RCD())
 }
 
 // RCD computes the RCD for key.
 func (key SK{{.ID}}Key) RCD() []byte {
-	return append([]byte{RCDType}, key.PublicKey()[:]...)
+	return append([]byte{RCDType01}, key.PublicKey()[:]...)
+}
+
+// Sign the msg.
+func (key SK{{.ID}}Key) Sign(msg []byte) []byte {
+	return ed25519.Sign(key.PrivateKey(), msg)
 }
 
 // PublicKey computes the ed25519.PublicKey for key.

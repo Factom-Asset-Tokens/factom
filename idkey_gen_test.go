@@ -450,28 +450,24 @@ func TestIDKey(t *testing.T) {
 		sk, _ := NewSK1Key(sk1KeyStr)
 		assert := assert.New(t)
 		assert.Equal(id, sk.ID1Key())
-		assert.Equal(id.RCDHash(), sk.RCDHash(), "RCDHash")
 	})
 	t.Run("SKKey/SK2", func(t *testing.T) {
 		id, _ := NewID2Key(id2KeyStr)
 		sk, _ := NewSK2Key(sk2KeyStr)
 		assert := assert.New(t)
 		assert.Equal(id, sk.ID2Key())
-		assert.Equal(id.RCDHash(), sk.RCDHash(), "RCDHash")
 	})
 	t.Run("SKKey/SK3", func(t *testing.T) {
 		id, _ := NewID3Key(id3KeyStr)
 		sk, _ := NewSK3Key(sk3KeyStr)
 		assert := assert.New(t)
 		assert.Equal(id, sk.ID3Key())
-		assert.Equal(id.RCDHash(), sk.RCDHash(), "RCDHash")
 	})
 	t.Run("SKKey/SK4", func(t *testing.T) {
 		id, _ := NewID4Key(id4KeyStr)
 		sk, _ := NewSK4Key(sk4KeyStr)
 		assert := assert.New(t)
 		assert.Equal(id, sk.ID4Key())
-		assert.Equal(id.RCDHash(), sk.RCDHash(), "RCDHash")
 	})
 
 	t.Run("Generate/SK1", func(t *testing.T) {

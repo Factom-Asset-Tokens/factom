@@ -197,7 +197,7 @@ var identityTests = []struct {
 			"8888880000000000000000000000000000000000000000000000000000000000")
 		return Identity{Entry: Entry{ChainID: &chainID}}
 	}(),
-	Error: `jsonrpc2.Error{Code:-32009, Message:"Missing Chain Head"}`,
+	Error: `jsonrpc2.Error{Code:ErrorCode{-32009:"reserved"}, Message:"Missing Chain Head"}`,
 }}
 
 var factomServer = "https://courtesy-node.factom.com/v2"

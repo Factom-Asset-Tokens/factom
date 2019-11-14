@@ -182,22 +182,17 @@ func (key *SK1Key) UnmarshalText(text []byte) error {
 
 // ID1Key computes the ID1Key corresponding to key.
 func (key SK1Key) ID1Key() ID1Key {
-	return key.RCDHash()
-}
-
-// RCDHash returns the RCD hash encoded in key.
-func (key ID1Key) RCDHash() [sha256.Size]byte {
-	return key
-}
-
-// RCDHash computes the RCD hash corresponding to key.
-func (key SK1Key) RCDHash() [sha256.Size]byte {
 	return sha256d(key.RCD())
 }
 
 // RCD computes the RCD for key.
 func (key SK1Key) RCD() []byte {
-	return append([]byte{RCDType}, key.PublicKey()[:]...)
+	return append([]byte{RCDType01}, key.PublicKey()[:]...)
+}
+
+// Sign the msg.
+func (key SK1Key) Sign(msg []byte) []byte {
+	return ed25519.Sign(key.PrivateKey(), msg)
 }
 
 // PublicKey computes the ed25519.PublicKey for key.
@@ -337,22 +332,17 @@ func (key *SK2Key) UnmarshalText(text []byte) error {
 
 // ID2Key computes the ID2Key corresponding to key.
 func (key SK2Key) ID2Key() ID2Key {
-	return key.RCDHash()
-}
-
-// RCDHash returns the RCD hash encoded in key.
-func (key ID2Key) RCDHash() [sha256.Size]byte {
-	return key
-}
-
-// RCDHash computes the RCD hash corresponding to key.
-func (key SK2Key) RCDHash() [sha256.Size]byte {
 	return sha256d(key.RCD())
 }
 
 // RCD computes the RCD for key.
 func (key SK2Key) RCD() []byte {
-	return append([]byte{RCDType}, key.PublicKey()[:]...)
+	return append([]byte{RCDType01}, key.PublicKey()[:]...)
+}
+
+// Sign the msg.
+func (key SK2Key) Sign(msg []byte) []byte {
+	return ed25519.Sign(key.PrivateKey(), msg)
 }
 
 // PublicKey computes the ed25519.PublicKey for key.
@@ -492,22 +482,17 @@ func (key *SK3Key) UnmarshalText(text []byte) error {
 
 // ID3Key computes the ID3Key corresponding to key.
 func (key SK3Key) ID3Key() ID3Key {
-	return key.RCDHash()
-}
-
-// RCDHash returns the RCD hash encoded in key.
-func (key ID3Key) RCDHash() [sha256.Size]byte {
-	return key
-}
-
-// RCDHash computes the RCD hash corresponding to key.
-func (key SK3Key) RCDHash() [sha256.Size]byte {
 	return sha256d(key.RCD())
 }
 
 // RCD computes the RCD for key.
 func (key SK3Key) RCD() []byte {
-	return append([]byte{RCDType}, key.PublicKey()[:]...)
+	return append([]byte{RCDType01}, key.PublicKey()[:]...)
+}
+
+// Sign the msg.
+func (key SK3Key) Sign(msg []byte) []byte {
+	return ed25519.Sign(key.PrivateKey(), msg)
 }
 
 // PublicKey computes the ed25519.PublicKey for key.
@@ -647,22 +632,17 @@ func (key *SK4Key) UnmarshalText(text []byte) error {
 
 // ID4Key computes the ID4Key corresponding to key.
 func (key SK4Key) ID4Key() ID4Key {
-	return key.RCDHash()
-}
-
-// RCDHash returns the RCD hash encoded in key.
-func (key ID4Key) RCDHash() [sha256.Size]byte {
-	return key
-}
-
-// RCDHash computes the RCD hash corresponding to key.
-func (key SK4Key) RCDHash() [sha256.Size]byte {
 	return sha256d(key.RCD())
 }
 
 // RCD computes the RCD for key.
 func (key SK4Key) RCD() []byte {
-	return append([]byte{RCDType}, key.PublicKey()[:]...)
+	return append([]byte{RCDType01}, key.PublicKey()[:]...)
+}
+
+// Sign the msg.
+func (key SK4Key) Sign(msg []byte) []byte {
+	return ed25519.Sign(key.PrivateKey(), msg)
 }
 
 // PublicKey computes the ed25519.PublicKey for key.
