@@ -29,7 +29,6 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	merkle "github.com/AdamSLevy/go-merkle"
 	"github.com/Factom-Asset-Tokens/factom/varintf"
 )
 
@@ -369,113 +368,6 @@ func (fb *FBlock) MarshalBinaryHeader() ([]byte, error) {
 	i += 4
 
 	return data, nil
-}
-
-// ComputeLedgerKeyMR computes the keymr of the factoid block including transaction
-// signatures.
-func (fb FBlock) ComputeKeyMR() (Bytes32, error) {
-	return fb.computeKeyMR(false)
-}
-
-// ComputeLedgerKeyMR computes the keymr of the factoid block excluding transaction
-// signatures.
-func (fb FBlock) ComputeLedgerKeyMR() (Bytes32, error) {
-	return fb.computeKeyMR(true)
-}
-
-func (fb FBlock) computeKeyMR(ledger bool) (Bytes32, error) {
-	if !fb.IsPopulated() {
-		return Bytes32{}, fmt.Errorf("not populated")
-	}
-
-	leaves := make([][]byte, 2)
-	header, err := fb.MarshalBinaryHeader()
-	if err != nil {
-		return Bytes32{}, err
-	}
-
-	body, err := fb.computeBodyMR(ledger)
-	if err != nil {
-		return Bytes32{}, err
-	}
-
-	headerHash := sha256.Sum256(header)
-	if ledger { // Merkle leaves are flipped for the ledger keymr
-		leaves[0] = body[:]
-		leaves[1] = headerHash[:]
-	} else {
-		leaves[0] = headerHash[:]
-		leaves[1] = body[:]
-	}
-
-	tree := merkle.NewTreeWithOpts(merkle.TreeOptions{DoubleOddNodes: true, DisableHashLeaves: true})
-	if err := tree.Generate(leaves, sha256.New()); err != nil {
-		return Bytes32{}, err
-	}
-	root := tree.Root()
-	var keyMR Bytes32
-	copy(keyMR[:], root.Hash)
-	return keyMR, nil
-}
-
-// ComputeBodyMR computes the merkle root of the transactions in the body including
-// their signatures
-func (fb FBlock) ComputeBodyMR() (Bytes32, error) {
-	return fb.computeBodyMR(false)
-}
-
-// ComputeBodyMR computes the merkle root of the transactions in the body excluding
-// their signatures
-func (fb FBlock) ComputeLedgerBodyMR() (Bytes32, error) {
-	return fb.computeBodyMR(true)
-}
-
-// computeBodyMR will calculate the merkle root of all the transactions in the body.
-// If `ledger` is true, signature blocks of the transactions are excluded.
-func (fb FBlock) computeBodyMR(ledger bool) (Bytes32, error) {
-	if !fb.IsPopulated() {
-		return Bytes32{}, fmt.Errorf("not populated")
-	}
-
-	// Transactions + minute markers are included
-	leaves := make([][]byte, len(fb.Transactions)+len(fb.endOfPeriod))
-	var period int
-	var c int
-	for i, trans := range fb.Transactions {
-		for period < len(fb.endOfPeriod) && i != 0 && i == fb.endOfPeriod[period] {
-			period++
-			leaves[c] = []byte{FBlockMinuteMarker}
-			c++
-		}
-
-		var data []byte
-		var err error
-		if ledger { // Ledger does not marshal signature fields
-			data, err = trans.MarshalLedgerBinary()
-		} else {
-			data, err = trans.MarshalBinary()
-		}
-		if err != nil {
-			return Bytes32{}, err
-		}
-		leaves[c] = data
-		c++
-	}
-
-	for period < len(fb.endOfPeriod) {
-		period++
-		leaves[c] = []byte{FBlockMinuteMarker}
-		c++
-	}
-
-	tree := merkle.NewTreeWithOpts(merkle.TreeOptions{DoubleOddNodes: true})
-	if err := tree.Generate(leaves, sha256.New()); err != nil {
-		return Bytes32{}, err
-	}
-	root := tree.Root()
-	var bodyMR Bytes32
-	copy(bodyMR[:], root.Hash)
-	return bodyMR, nil
 }
 
 func (fb FBlock) ComputeFullHash() (Bytes32, error) {

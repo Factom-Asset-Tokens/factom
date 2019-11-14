@@ -89,9 +89,7 @@ func TestFactoidBlock_UnmarshalBinary(t *testing.T) {
 				require.NoError(err)
 				assert.Equal(test.Data, data)
 
-				bodymr, err := f.ComputeBodyMR()
-				require.NoError(err)
-				assert.Equal(test.BodyMR[:], bodymr[:])
+				assert.Equal(test.BodyMR[:], f.BodyMR[:])
 
 				assert.Equal(test.KeyMr[:], f.KeyMR[:])
 
