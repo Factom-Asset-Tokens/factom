@@ -60,7 +60,7 @@ const (
 	RCDType01SigSize = ed25519.SignatureSize
 )
 
-func ValidateRCD01(rcd []byte, sig []byte, msg []byte) (Bytes32, error) {
+func ValidateRCD01(rcd, sig, msg []byte) (Bytes32, error) {
 	if len(rcd) != RCDType01Size {
 		return Bytes32{}, fmt.Errorf("invalid RCD size")
 	}

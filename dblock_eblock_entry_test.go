@@ -155,10 +155,10 @@ func TestDataStructures(t *testing.T) {
 		require.Error(eb2.Get(nil, c))
 		require.False(eb2.IsPopulated())
 		assert.EqualError(eb2.GetFirst(nil, c),
-			`jsonrpc2.Error{Code:-32009, Message:"Missing Chain Head"}`)
+			`jsonrpc2.Error{Code:ErrorCode{-32009:"reserved"}, Message:"Missing Chain Head"}`)
 		ebs, err = eb2.GetPrevAll(nil, c)
 		assert.EqualError(err,
-			`jsonrpc2.Error{Code:-32009, Message:"Missing Chain Head"}`)
+			`jsonrpc2.Error{Code:ErrorCode{-32009:"reserved"}, Message:"Missing Chain Head"}`)
 		assert.Nil(ebs)
 
 		//c.Factomd.DebugRequest = true
