@@ -42,6 +42,14 @@ import (
 // FAAddress is a Public Factoid Address.
 type FAAddress [sha256.Size]byte
 
+// FEAddress is a Public Factoid Address encoded to indicate that it is backed
+// by an Ethereum address and belongs to a Pegnet/Ethereum Gateway.
+type FEAddress [sha256.Size]byte
+
+// FeAddress is a Public Factoid Address encoded to indicate that it is backed
+// by an Ethereum address.
+type FeAddress [sha256.Size]byte
+
 // FsAddress is the secret key to a FAAddress.
 type FsAddress [sha256.Size]byte
 
@@ -56,6 +64,12 @@ type EsAddress [sha256.Size]byte
 func (adr *FAAddress) payload() *payload {
 	return (*payload)(adr)
 }
+func (adr *FEAddress) payload() *payload {
+	return (*payload)(adr)
+}
+func (adr *FeAddress) payload() *payload {
+	return (*payload)(adr)
+}
 func (adr *FsAddress) payload() *payload {
 	return (*payload)(adr)
 }
@@ -68,7 +82,10 @@ func (adr *EsAddress) payload() *payload {
 
 var (
 	faPrefixBytes = [...]byte{0x5f, 0xb1}
+	fEPrefixBytes = [...]byte{0x60, 0x28}
+	fePrefixBytes = [...]byte{0x62, 0xf4}
 	fsPrefixBytes = [...]byte{0x64, 0x78}
+
 	ecPrefixBytes = [...]byte{0x59, 0x2a}
 	esPrefixBytes = [...]byte{0x5d, 0xb6}
 )
@@ -78,6 +95,22 @@ var (
 // does not depend on the address value. Returns []byte{0x5f, 0xb1}.
 func (FAAddress) PrefixBytes() Bytes {
 	prefix := faPrefixBytes
+	return prefix[:]
+}
+
+// PrefixBytes returns the two byte prefix for the address type as a byte
+// slice. Note that the prefix for a given address type is always the same and
+// does not depend on the address value. Returns []byte{0x60, 0x28}.
+func (FEAddress) PrefixBytes() Bytes {
+	prefix := fEPrefixBytes
+	return prefix[:]
+}
+
+// PrefixBytes returns the two byte prefix for the address type as a byte
+// slice. Note that the prefix for a given address type is always the same and
+// does not depend on the address value. Returns []byte{0x62, 0xf4}.
+func (FeAddress) PrefixBytes() Bytes {
+	prefix := fePrefixBytes
 	return prefix[:]
 }
 
@@ -107,7 +140,10 @@ func (EsAddress) PrefixBytes() Bytes {
 
 const (
 	faPrefixStr = "FA"
+	fEPrefixStr = "FE"
+	fePrefixStr = "Fe"
 	fsPrefixStr = "Fs"
+
 	ecPrefixStr = "EC"
 	esPrefixStr = "Es"
 )
@@ -117,6 +153,20 @@ const (
 // does not depend on the address value. Returns "FA".
 func (FAAddress) PrefixString() string {
 	return faPrefixStr
+}
+
+// PrefixString returns the two prefix bytes for the address type as an encoded
+// string. Note that the prefix for a given address type is always the same and
+// does not depend on the address value. Returns "FE".
+func (FEAddress) PrefixString() string {
+	return fEPrefixStr
+}
+
+// PrefixString returns the two prefix bytes for the address type as an encoded
+// string. Note that the prefix for a given address type is always the same and
+// does not depend on the address value. Returns "Fe".
+func (FeAddress) PrefixString() string {
+	return fePrefixStr
 }
 
 // PrefixString returns the two prefix bytes for the address type as an encoded
@@ -148,6 +198,18 @@ func (adr FAAddress) String() string {
 
 // String encodes adr into its human readable form: base58check with
 // adr.PrefixBytes().
+func (adr FEAddress) String() string {
+	return adr.payload().StringWithPrefix(adr.PrefixBytes())
+}
+
+// String encodes adr into its human readable form: base58check with
+// adr.PrefixBytes().
+func (adr FeAddress) String() string {
+	return adr.payload().StringWithPrefix(adr.PrefixBytes())
+}
+
+// String encodes adr into its human readable form: base58check with
+// adr.PrefixBytes().
 func (adr FsAddress) String() string {
 	return adr.payload().StringWithPrefix(adr.PrefixBytes())
 }
@@ -166,6 +228,16 @@ func (adr EsAddress) String() string {
 
 // MarshalText encodes adr as a string using adr.String().
 func (adr FAAddress) MarshalText() ([]byte, error) {
+	return adr.payload().MarshalTextWithPrefix(adr.PrefixBytes())
+}
+
+// MarshalText encodes adr as a string using adr.String().
+func (adr FEAddress) MarshalText() ([]byte, error) {
+	return adr.payload().MarshalTextWithPrefix(adr.PrefixBytes())
+}
+
+// MarshalText encodes adr as a string using adr.String().
+func (adr FeAddress) MarshalText() ([]byte, error) {
 	return adr.payload().MarshalTextWithPrefix(adr.PrefixBytes())
 }
 
@@ -212,6 +284,18 @@ func NewFAAddress(adrStr string) (adr FAAddress, err error) {
 	return
 }
 
+// NewFEAddress attempts to parse adrStr into a new FAAddress.
+func NewFEAddress(adrStr string) (adr FEAddress, err error) {
+	err = adr.Set(adrStr)
+	return
+}
+
+// NewFeAddress attempts to parse adrStr into a new FAAddress.
+func NewFeAddress(adrStr string) (adr FeAddress, err error) {
+	err = adr.Set(adrStr)
+	return
+}
+
 // NewFsAddress attempts to parse adrStr into a new FsAddress.
 func NewFsAddress(adrStr string) (adr FsAddress, err error) {
 	err = adr.Set(adrStr)
@@ -236,6 +320,16 @@ func (adr *FAAddress) Set(adrStr string) error {
 }
 
 // Set attempts to parse adrStr into adr.
+func (adr *FEAddress) Set(adrStr string) error {
+	return adr.payload().SetWithPrefix(adrStr, adr.PrefixString())
+}
+
+// Set attempts to parse adrStr into adr.
+func (adr *FeAddress) Set(adrStr string) error {
+	return adr.payload().SetWithPrefix(adrStr, adr.PrefixString())
+}
+
+// Set attempts to parse adrStr into adr.
 func (adr *FsAddress) Set(adrStr string) error {
 	return adr.payload().SetWithPrefix(adrStr, adr.PrefixString())
 }
@@ -253,6 +347,18 @@ func (adr *EsAddress) Set(adrStr string) error {
 // UnmarshalText decodes a string with a human readable public Factoid address
 // into adr.
 func (adr *FAAddress) UnmarshalText(text []byte) error {
+	return adr.payload().UnmarshalTextWithPrefix(text, adr.PrefixString())
+}
+
+// UnmarshalText decodes a string with a human readable public Factoid address
+// into adr.
+func (adr *FEAddress) UnmarshalText(text []byte) error {
+	return adr.payload().UnmarshalTextWithPrefix(text, adr.PrefixString())
+}
+
+// UnmarshalText decodes a string with a human readable public Factoid address
+// into adr.
+func (adr *FeAddress) UnmarshalText(text []byte) error {
 	return adr.payload().UnmarshalTextWithPrefix(text, adr.PrefixString())
 }
 
