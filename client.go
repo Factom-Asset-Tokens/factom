@@ -26,7 +26,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/AdamSLevy/jsonrpc2/v12"
+	"github.com/AdamSLevy/jsonrpc2/v13"
 )
 
 // Client makes RPC requests to factomd's and factom-walletd's APIs.  Client

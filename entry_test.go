@@ -27,7 +27,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/AdamSLevy/jsonrpc2/v12"
+	"github.com/AdamSLevy/jsonrpc2/v13"
 	. "github.com/Factom-Asset-Tokens/factom"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

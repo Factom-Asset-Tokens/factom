@@ -107,7 +107,7 @@ func (eb *EBlock) Get(ctx context.Context, c *Client) error {
 //
 // The returned boolean indicates whether the chain is in the process list.
 //
-// If the Chain does not exist, a jsonrpc2/v12.Error will be returned
+// If the Chain does not exist, a jsonrpc2/v13.Error will be returned
 // indicating a Missing Chain Head.
 //
 // If the Chain creation is pending, true will be returned, but the eb.KeyMR
