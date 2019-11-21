@@ -47,6 +47,6 @@ func Sign(e factom.Entry, signingSet ...factom.RCDSigner) factom.Entry {
 	return e
 }
 func newTimestampSalt() []byte {
-	timestamp := time.Now().Add(time.Duration(-rand.Int63n(int64(1 * time.Hour))))
-	return []byte(strconv.FormatInt(timestamp.Unix(), 10))
+	timestamp := time.Now().Unix() + rand.Int63n(1000)
+	return []byte(strconv.FormatInt(timestamp, 10))
 }
