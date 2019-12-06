@@ -27,6 +27,19 @@ import (
 	"fmt"
 )
 
+// TODO: What would be the best naming for this constants?
+const (
+	// Flags are set to indicate which rcds are valid for the validate
+	// function. This allows a whitelist of valid rcd types for
+	// the validate function. The flags are a bitmask to be combined with
+	// a bitwise OR, e.g:
+	//		R_RCD1|R_RCDe
+	//
+
+	R_ALL = 1 << iota // Indicates all rcd types are valid
+	R_RCD1
+)
+
 // RCDSigner is the interface implemented by types that can generate Redeem
 // Condition Datastructures and the corresponding signatures to validate them.
 type RCDSigner interface {
@@ -37,16 +50,28 @@ type RCDSigner interface {
 	Sign(msg []byte) []byte
 }
 
-func ValidateRCD(rcd, sig, msg []byte) (Bytes32, error) {
+func ValidateRCD(rcd, sig, msg []byte, flag int) (Bytes32, error) {
 	if len(rcd) < 1 {
 		return Bytes32{}, fmt.Errorf("invalid RCD size")
 	}
 	var validateRCD func(rcd, sig, msg []byte) (Bytes32, error)
+
+	// Validate the rcd type is an accepted type based on the flag.
+	// If `mask & flag` > 0, the rcd is enabled.
+	// We always check the R_ALL bit
+	mask := R_ALL
+
 	switch rcd[0] {
 	case RCDType01:
+		// Also check the rcd01 bit
+		mask = mask | R_RCD1
 		validateRCD = ValidateRCD01
 	default:
 		return Bytes32{}, fmt.Errorf("unsupported RCD")
+	}
+
+	if flag&mask == 0 {
+		return Bytes32{}, fmt.Errorf("rcd type is rejected by the validate mask")
 	}
 	return validateRCD(rcd, sig, msg)
 }
