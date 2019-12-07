@@ -28,7 +28,7 @@ import (
 // The new Data Store chainID is returned, along with the commits and reveals
 // required to create the Data Store Chain, and the totalCost in Entry Credits
 // of creating the Data Store.
-func Generate(ctx context.Context, c *factom.Client, es factom.EsAddress,
+func Generate(ctx context.Context, es factom.EsAddress,
 	cData io.Reader, compression *Compression,
 	dataSize uint64, dataHash *factom.Bytes32,
 	appMetadata json.RawMessage, appNamespace ...factom.Bytes) (

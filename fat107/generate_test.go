@@ -97,7 +97,7 @@ func TestGenerate(t *testing.T) {
 	fmt.Println("\tsize:", size)
 	fmt.Println("\tcompression:", compression)
 	chainID, txIDs, eHashes, commits, reveals, totalCost, err :=
-		Generate(nil, c, ecEs.Es, cDataBuf, &compression, uint64(size),
+		Generate(nil, ecEs.Es, cDataBuf, &compression, uint64(size),
 			&dataHash, nil)
 	require.NoError(err)
 	fmt.Println("\tChainID:", chainID)
@@ -120,11 +120,19 @@ func TestGenerate(t *testing.T) {
 
 	require.LessOrEqual(uint64(totalCost), ecBal, "insufficient balance")
 
-	policy := retry.Randomize{Factor: .25,
-		Policy: retry.LimitTotal{15 * time.Minute,
-			retry.Max{5 * time.Second,
-				retry.Randomize{.2,
-					retry.Exponential{5 * time.Millisecond, 1.25}}}}}
+	policy := retry.Randomize{
+		Factor: .25,
+		Policy: retry.LimitTotal{
+			Limit: 15 * time.Minute,
+			Policy: retry.Max{
+				Cap: 5 * time.Second,
+				Policy: retry.Exponential{
+					Initial:    5 * time.Millisecond,
+					Multiplier: 1.25,
+				},
+			},
+		},
+	}
 	notify := func(hash *factom.Bytes32, s string) func(error, uint, time.Duration) {
 		return func(_ error, r uint, d time.Duration) {
 			fmt.Println(hash.String()[:6], "waiting for", s, "ack...", r, d)
