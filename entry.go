@@ -48,6 +48,8 @@ type Entry struct {
 	// Entry.Get populates the Content and ExtIDs.
 	ExtIDs  []Bytes `json:"extids"`
 	Content Bytes   `json:"content"`
+
+	data Bytes
 }
 
 // IsPopulated returns true if e has already been successfully populated by a
@@ -418,6 +420,10 @@ func (e Entry) MarshalBinaryLen() int {
 //
 // https://github.com/FactomProject/FactomDocs/blob/master/factomDataStructureDetails.md#entry
 func (e Entry) MarshalBinary() ([]byte, error) {
+	if len(e.data) > 0 {
+		return e.data, nil
+	}
+
 	if e.ChainID == nil {
 		return nil, fmt.Errorf("missing ChainID")
 	}
@@ -443,6 +449,9 @@ func (e Entry) MarshalBinary() ([]byte, error) {
 		i += copy(data[i:], extID)
 	}
 	copy(data[i:], e.Content)
+
+	e.data = data
+
 	return data, nil
 }
 
@@ -518,7 +527,11 @@ func (e *Entry) UnmarshalBinary(data []byte) error {
 		i += extIDLen
 	}
 
-	e.Content = append(e.Content[0:0], data[i:]...)
+	if e.Content == nil {
+		e.Content = data[i:]
+	} else {
+		e.Content = append(e.Content[0:0], data[i:]...)
+	}
 
 	// Verify Hash, if set, otherwise populate it.
 	hash := ComputeEntryHash(data)
@@ -529,6 +542,9 @@ func (e *Entry) UnmarshalBinary(data []byte) error {
 	} else {
 		e.Hash = &hash
 	}
+
+	// Cache data for efficient marshaling.
+	e.data = data
 
 	return nil
 }

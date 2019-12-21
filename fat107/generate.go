@@ -32,7 +32,6 @@ func Generate(ctx context.Context, es factom.EsAddress,
 	cData io.Reader, compression *Compression,
 	dataSize uint64, dataHash *factom.Bytes32,
 	appMetadata json.RawMessage, appNamespace ...factom.Bytes) (
-
 	chainID factom.Bytes32,
 	txIDs, entryHashes []factom.Bytes32,
 	commits, reveals []factom.Bytes,

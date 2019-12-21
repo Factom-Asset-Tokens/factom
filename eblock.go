@@ -50,6 +50,8 @@ type EBlock struct {
 
 	// EBlock.Get populates the Entries with their Hash and Timestamp.
 	Entries []Entry
+
+	data Bytes
 }
 
 // IsPopulated returns true if eb has already been populated by a successful
@@ -186,7 +188,7 @@ func (eb EBlock) Prev() EBlock {
 // If you are only interested in obtaining the first entry block in eb's chain,
 // and not all of the intermediary ones, then use GetFirst.
 func (eb EBlock) GetPrevAll(ctx context.Context, c *Client) ([]EBlock, error) {
-	return eb.GetPrevUpTo(ctx, c, Bytes32{})
+	return eb.GetPrevUpTo(ctx, c, &Bytes32{})
 }
 
 // GetPrevUpTo returns a slice of all preceding EBlocks, in order from eb back
@@ -196,25 +198,25 @@ func (eb EBlock) GetPrevAll(ctx context.Context, c *Client) ([]EBlock, error) {
 // Get is first called on eb. So if eb does not have a KeyMR, the chain head
 // KeyMR is queried first.
 //
-// If *eb.KeyMR == keyMR then ([]EBlock{}, nil) is returned.
+// If *eb.KeyMR == *keyMR then ([]EBlock{}, nil) is returned.
 //
-// If *eb.PrevKeyMR == keyMR, then it is the only element in the slice.
+// If *eb.PrevKeyMR == *keyMR, then it is the only element in the slice.
 //
 // If the beginning of the chain is reached without finding keyMR, then
 // fmt.Errorf("end of chain") is returned.
 func (eb EBlock) GetPrevUpTo(
-	ctx context.Context, c *Client, keyMR Bytes32) ([]EBlock, error) {
+	ctx context.Context, c *Client, keyMR *Bytes32) ([]EBlock, error) {
 
 	if err := eb.Get(ctx, c); err != nil {
 		return nil, err
 	}
-	if *eb.KeyMR == keyMR {
+	if *eb.KeyMR == *keyMR {
 		return []EBlock{}, nil
 	}
 	ebs := []EBlock{eb}
 	e := eb
 	for {
-		if *e.PrevKeyMR == keyMR {
+		if *e.PrevKeyMR == *keyMR {
 			return ebs, nil
 		}
 		if e.IsFirst() {
@@ -410,6 +412,8 @@ func (eb *EBlock) UnmarshalBinary(data []byte) error {
 	eb.FullHash = new(Bytes32)
 	*eb.FullHash = ComputeFullHash(data)
 
+	eb.data = data
+
 	return nil
 }
 
@@ -432,6 +436,10 @@ func (eb *EBlock) UnmarshalBinary(data []byte) error {
 //
 // https://github.com/FactomProject/FactomDocs/blob/master/factomDataStructureDetails.md#entry-block
 func (eb EBlock) MarshalBinary() ([]byte, error) {
+	if eb.data != nil {
+		return eb.data, nil
+	}
+
 	if !eb.IsPopulated() {
 		return nil, fmt.Errorf("not populated")
 	}
