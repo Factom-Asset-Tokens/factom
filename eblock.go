@@ -28,7 +28,10 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"runtime"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 // EBlock represents a Factom Entry Block.
@@ -144,16 +147,40 @@ func (eb *EBlock) GetChainHead(ctx context.Context, c *Client) (bool, error) {
 }
 
 // GetEntries calls eb.Get and then calls Get on each Entry in eb.Entries.
+//
+// Entries are downloaded concurrently.
 func (eb *EBlock) GetEntries(ctx context.Context, c *Client) error {
 	if err := eb.Get(ctx, c); err != nil {
 		return err
 	}
+
+	n := runtime.NumCPU()
+	if len(eb.Entries) < n {
+		n = len(eb.Entries)
+	}
+
+	entries := make(chan *Entry, n)
+
+	g, ctx := errgroup.WithContext(ctx)
+	for i := 0; i < n; i++ {
+		g.Go(func() error {
+			for e := range entries {
+				if err := e.Get(ctx, c); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}
 	for i := range eb.Entries {
-		if err := eb.Entries[i].Get(ctx, c); err != nil {
-			return err
+		select {
+		case entries <- &eb.Entries[i]:
+		case <-ctx.Done():
 		}
 	}
-	return nil
+	close(entries)
+
+	return g.Wait()
 }
 
 // IsFirst returns true if this is the first EBlock in its chain, indicated by
@@ -188,12 +215,12 @@ func (eb EBlock) Prev() EBlock {
 // If you are only interested in obtaining the first entry block in eb's chain,
 // and not all of the intermediary ones, then use GetFirst.
 func (eb EBlock) GetPrevAll(ctx context.Context, c *Client) ([]EBlock, error) {
-	return eb.GetPrevUpTo(ctx, c, &Bytes32{})
+	return eb.GetPrevBackTo(ctx, c, &Bytes32{})
 }
 
-// GetPrevUpTo returns a slice of all preceding EBlocks, in order from eb back
-// to, but not including, keyMR. So the 0th element of the returned slice is
-// always equal to eb.
+// GetPrevBackTo returns a slice of all preceding EBlocks, in order from eb
+// back to, but not including, keyMR. So the 0th element of the returned slice
+// is always equal to eb.
 //
 // Get is first called on eb. So if eb does not have a KeyMR, the chain head
 // KeyMR is queried first.
@@ -204,7 +231,7 @@ func (eb EBlock) GetPrevAll(ctx context.Context, c *Client) ([]EBlock, error) {
 //
 // If the beginning of the chain is reached without finding keyMR, then
 // fmt.Errorf("end of chain") is returned.
-func (eb EBlock) GetPrevUpTo(
+func (eb EBlock) GetPrevBackTo(
 	ctx context.Context, c *Client, keyMR *Bytes32) ([]EBlock, error) {
 
 	if err := eb.Get(ctx, c); err != nil {
