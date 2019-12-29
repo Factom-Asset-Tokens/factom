@@ -215,7 +215,10 @@ func (eb EBlock) Prev() EBlock {
 // If you are only interested in obtaining the first entry block in eb's chain,
 // and not all of the intermediary ones, then use GetFirst.
 func (eb EBlock) GetPrevAll(ctx context.Context, c *Client) ([]EBlock, error) {
-	return eb.GetPrevBackTo(ctx, c, &Bytes32{})
+	if err := eb.Get(ctx, c); err != nil {
+		return nil, err
+	}
+	return eb.GetPrevN(ctx, c, eb.Sequence+1)
 }
 
 // GetPrevBackTo returns a slice of all preceding EBlocks, in order from eb
@@ -240,21 +243,62 @@ func (eb EBlock) GetPrevBackTo(
 	if *eb.KeyMR == *keyMR {
 		return []EBlock{}, nil
 	}
-	ebs := []EBlock{eb}
-	e := eb
+	eblocks := []EBlock{eb}
 	for {
-		if *e.PrevKeyMR == *keyMR {
-			return ebs, nil
+		if *eb.PrevKeyMR == *keyMR {
+			return eblocks, nil
 		}
-		if e.IsFirst() {
+		if eb.IsFirst() {
 			return nil, fmt.Errorf("end of chain")
 		}
-		e = e.Prev()
-		if err := e.Get(ctx, c); err != nil {
+		eb = eb.Prev()
+		if err := eb.Get(ctx, c); err != nil {
 			return nil, err
 		}
-		ebs = append(ebs, e)
+		eblocks = append(eblocks, eb)
 	}
+}
+
+// GetPrevN returns a slice of n prev EBlocks, in reverse order, including eb.
+// So the 0th element of the returned slice is always equal to eb.
+//
+// Get is first called on eb. So if eb does not have a KeyMR, the chain head
+// KeyMR is queried first.
+//
+// If n == 0, then ([]EBlock{}, nil) is returned.
+//
+// If n == 1, then it is the only element in the slice.
+//
+// If the beginning of the chain is reached before n EBlocks then
+// fmt.Errorf("end of chain") is returned.
+func (eb EBlock) GetPrevN(ctx context.Context, c *Client,
+	n uint32) ([]EBlock, error) {
+	if n == 0 {
+		return nil, nil
+	}
+
+	if err := eb.Get(ctx, c); err != nil {
+		return nil, err
+	}
+
+	if n > eb.Sequence+1 {
+		return nil, fmt.Errorf("end of chain")
+	}
+
+	eblocks := make([]EBlock, n)
+
+	eblocks[0] = eb
+	for i := range eblocks {
+		if i == 0 {
+			continue
+		}
+		eb := &eblocks[i]
+		*eb = eblocks[i-1].Prev()
+		if err := eb.Get(ctx, c); err != nil {
+			return nil, err
+		}
+	}
+	return eblocks, nil
 }
 
 // GetFirst finds the first Entry Block in eb's chain, and populates eb as
@@ -520,7 +564,8 @@ func (eb *EBlock) SetTimestamp(ts time.Time) {
 	prevTs := eb.Timestamp
 	for i := range eb.Entries {
 		e := &eb.Entries[i]
-		e.Timestamp = ts.Add(e.Timestamp.Sub(prevTs))
+		minute := e.Timestamp.Sub(prevTs)
+		e.Timestamp = ts.Add(minute)
 	}
 	eb.Timestamp = ts
 }
