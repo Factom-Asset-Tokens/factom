@@ -41,6 +41,11 @@ type Transaction struct {
 	Inputs  AddressAmountMap `json:"inputs"`
 	Outputs AddressAmountMap `json:"outputs"`
 
+	Contract *factom.Bytes32 `json:"contract,omitempty"`
+
+	Func string `json:"func,omitempty"`
+	Args []Arg  `json:"args,omitempty"`
+
 	Metadata json.RawMessage `json:"metadata,omitempty"`
 
 	Entry factom.Entry `json:"-"`
@@ -60,7 +65,7 @@ func NewTransaction(e factom.Entry, idKey *factom.Bytes32) (Transaction, error) 
 	// Coinbase transactions must only have one input.
 	if t.IsCoinbase() {
 		if len(t.Inputs) != 1 {
-			return t, fmt.Errorf("invalid coinbase transaction")
+			return t, fmt.Errorf("coinbase: extra inputs")
 		}
 
 		expected = map[factom.Bytes32]struct{}{*idKey: struct{}{}}
@@ -68,6 +73,31 @@ func NewTransaction(e factom.Entry, idKey *factom.Bytes32) (Transaction, error) 
 		expected = make(map[factom.Bytes32]struct{}, len(t.Inputs))
 		for adr := range t.Inputs {
 			expected[factom.Bytes32(adr)] = struct{}{}
+		}
+	}
+
+	if t.IsContractDelegation() {
+		if !t.IsSISO() {
+			return t, fmt.Errorf("contract: not SISO")
+		}
+		if !t.IsSendToSelf() {
+			return t, fmt.Errorf("contract: not SISO")
+		}
+		if t.IsContractCall() || len(t.Args) != 0 {
+			return t, fmt.Errorf("contract: extra fields")
+		}
+	}
+
+	if t.IsContractCall() {
+		if !t.IsSISO() {
+			return t, fmt.Errorf("contract: not SISO")
+		}
+		if t.IsContractDelegation() {
+			return t, fmt.Errorf("call: extra fields")
+		}
+	} else {
+		if len(t.Args) != 0 {
+			return t, fmt.Errorf("extra fields")
 		}
 	}
 
@@ -80,13 +110,34 @@ func NewTransaction(e factom.Entry, idKey *factom.Bytes32) (Transaction, error) 
 	return t, nil
 }
 
+type tRaw struct {
+	Inputs  json.RawMessage `json:"inputs"`
+	Outputs json.RawMessage `json:"outputs"`
+	Args    json.RawMessage `json:"args"`
+	*Transaction
+}
+
+func (t *tRaw) ExpectedJSONLen() int {
+	expect := len(`{"inputs":,"outputs":}`) +
+		len(t.Inputs) + len(t.Outputs)
+	if t.Metadata != nil {
+		expect += len(`,"metadata":`) + len(t.Metadata)
+	}
+	if t.Contract != nil {
+		expect += len(`,"contract":""`) + 64
+	}
+	if len(t.Func) > 0 {
+		expect += len(`,"func":""`) + len(t.Func)
+	}
+	if len(t.Args) > 0 {
+		expect += len(`,"args":""`) + len(t.Args)
+	}
+	return expect
+}
+
 func (t *Transaction) UnmarshalJSON(data []byte) error {
 	data = jsonlen.Compact(data)
-	var tRaw struct {
-		Inputs   json.RawMessage `json:"inputs"`
-		Outputs  json.RawMessage `json:"outputs"`
-		Metadata json.RawMessage `json:"metadata,omitempty"`
-	}
+	tRaw := tRaw{Transaction: t}
 	if err := json.Unmarshal(data, &tRaw); err != nil {
 		return fmt.Errorf("%T: %w", t, err)
 	}
@@ -96,14 +147,13 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 	if err := t.Outputs.UnmarshalJSON(tRaw.Outputs); err != nil {
 		return fmt.Errorf("%T.Outputs: %w", t, err)
 	}
-	t.Metadata = tRaw.Metadata
-
-	expectedJSONLen := len(`{"inputs":,"outputs":}`) +
-		len(tRaw.Inputs) + len(tRaw.Outputs)
-	if tRaw.Metadata != nil {
-		expectedJSONLen += len(`,"metadata":`) + len(tRaw.Metadata)
+	if len(tRaw.Args) > 0 {
+		if err := json.Unmarshal(tRaw.Args, &t.Args); err != nil {
+			return fmt.Errorf("%T.Outputs: %w", t, err)
+		}
 	}
-	if expectedJSONLen != len(data) {
+
+	if tRaw.ExpectedJSONLen() != len(data) {
 		return fmt.Errorf("%T: unexpected JSON length", t)
 	}
 
@@ -113,6 +163,22 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 func (t Transaction) IsCoinbase() bool {
 	_, ok := t.Inputs[fat.Coinbase()]
 	return ok
+}
+func (t Transaction) IsContractDelegation() bool {
+	return t.Contract != nil
+}
+func (t Transaction) IsContractCall() bool {
+	return len(t.Func) > 0
+}
+func (t Transaction) IsSISO() bool {
+	return len(t.Inputs) == 1 && len(t.Outputs) == 1
+}
+func (t Transaction) IsSendToSelf() bool {
+	for adr := range t.Inputs {
+		_, ok := t.Outputs[adr]
+		return ok
+	}
+	return false
 }
 
 func (t Transaction) String() string {
