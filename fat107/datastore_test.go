@@ -50,7 +50,7 @@ func TestMetadata(t *testing.T) {
 	}
 
 	dataBuf := bytes.NewBuffer(make([]byte, 0, m.Size))
-	require.NoError(m.Download(nil, c, dataBuf))
+	require.NoError(m.Get(nil, c, dataBuf))
 
 	hash := sha256.Sum256(dataBuf.Bytes())
 	hash = sha256.Sum256(hash[:])

@@ -42,10 +42,10 @@ import (
 //
 // The given dataHash must be the sha256d hash of the uncompressed data.
 //
-// The appMetadata and appNamespace are optional. The appMetadata is included
-// in the JSON stored in the content of the First Entry, and the appNamespace
-// is appended to the ExtIDs of the First Entry and so must be known, along
-// with the dataHash, for a client to recompute the ChainID.
+// The metadata and appNamespace are optional. The metadata is included in the
+// JSON stored in the content of the First Entry, and the appNamespace is
+// appended to the ExtIDs of the First Entry and so must be known, along with
+// the dataHash, for a client to recompute the ChainID.
 //
 // The new Data Store chainID is returned, along with the commits and reveals
 // required to create the Data Store Chain, and the totalCost in Entry Credits
@@ -53,7 +53,7 @@ import (
 func Generate(ctx context.Context, es factom.EsAddress,
 	cData io.Reader, compression *Compression,
 	dataSize uint64, dataHash *factom.Bytes32,
-	appMetadata json.RawMessage, appNamespace ...factom.Bytes) (
+	metadata json.RawMessage, appNamespace ...factom.Bytes) (
 	chainID factom.Bytes32,
 	txIDs, entryHashes []factom.Bytes32,
 	commits, reveals []factom.Bytes,
@@ -88,7 +88,8 @@ func Generate(ctx context.Context, es factom.EsAddress,
 
 	// Compute the expected Data Block Index Entry Count
 	dbiECount := dbECount / MaxLinkedDBIEHashCount
-	if dbECount%MaxLinkedDBIEHashCount > (MaxDBIEHashCount - MaxLinkedDBIEHashCount) {
+	if dbECount%MaxLinkedDBIEHashCount >
+		(MaxDBIEHashCount - MaxLinkedDBIEHashCount) {
 		dbiECount++
 	}
 	totalECount := 1 + dbiECount + dbECount
@@ -170,13 +171,13 @@ func Generate(ctx context.Context, es factom.EsAddress,
 		commits[i] = commit
 	}
 
-	// Initialize Metadata for what will be the first entry.
-	m := Metadata{
+	// Initialize DataStore for what will be the first entry.
+	d := DataStore{
 		Version:     Version,
 		DataHash:    dataHash,
 		Size:        dataSize,
 		Compression: compression,
-		AppMetadata: appMetadata,
+		Metadata:    metadata,
 		DBIStart:    &dbiStart,
 	}
 
@@ -184,7 +185,7 @@ func Generate(ctx context.Context, es factom.EsAddress,
 		ChainID: &chainID,
 		ExtIDs:  nameIDs,
 	}
-	firstE.Content, err = json.Marshal(m)
+	firstE.Content, err = json.Marshal(d)
 	if err != nil {
 		return factom.Bytes32{}, nil, nil, nil, nil, 0, err
 	}

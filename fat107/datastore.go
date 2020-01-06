@@ -38,12 +38,12 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// Metadata describes the Data from a Data Store Chain.
-type Metadata struct {
+// DataStore describes the Data from a Data Store Chain.
+type DataStore struct {
 	// The sha256d hash of the Data.
 	DataHash *factom.Bytes32 `json:"-"`
 
-	// The First Entry of the Data Store Chain, from which this Metadata
+	// The First Entry of the Data Store Chain, from which this DataStore
 	// was parsed.
 	Entry factom.Entry `json:"-"`
 
@@ -61,7 +61,7 @@ type Metadata struct {
 	DBIStart *factom.Bytes32 `json:"dbi-start"`
 
 	// Optional additional JSON containing application defined Metadata.
-	AppMetadata json.RawMessage `json:"metadata,omitempty"`
+	Metadata json.RawMessage `json:"metadata,omitempty"`
 }
 
 // Compression describes compression settings for how the Data is stored.
@@ -88,69 +88,69 @@ func NameIDs(dataHash *factom.Bytes32, namespace ...factom.Bytes) []factom.Bytes
 	return append([]factom.Bytes{[]byte(Protocol), dataHash[:]}, namespace...)
 }
 
-// Lookup the Metadata for a given Data Store chainID.
+// Lookup the DataStore for a given Data Store chainID.
 func Lookup(ctx context.Context, c *factom.Client,
-	chainID *factom.Bytes32) (Metadata, error) {
+	chainID *factom.Bytes32) (DataStore, error) {
 
 	// Get the first Entry in the Chain...
 
 	// Get the first EBlock in the Chain.
 	firstEB := factom.EBlock{ChainID: chainID}
 	if err := firstEB.GetFirst(ctx, c); err != nil {
-		return Metadata{}, err
+		return DataStore{}, err
 	}
 
 	// Get the First Entry in the EBlock.
 	firstE := firstEB.Entries[0]
 	if err := firstE.Get(ctx, c); err != nil {
-		return Metadata{}, err
+		return DataStore{}, err
 	}
 
-	// Parse the First Entry and return the Metadata or any error.
+	// Parse the First Entry and return the DataStore or any error.
 	return ParseEntry(firstE)
 }
 
 // ParseEntry attempts to parse e as the First Entry from a Data Store Chain.
-func ParseEntry(e factom.Entry) (Metadata, error) {
+func ParseEntry(e factom.Entry) (DataStore, error) {
 
 	// Validate and parse ExtIDs
 
 	// The Entry must have at least 2 ExtIDs.
 	if len(e.ExtIDs) < 2 {
-		return Metadata{}, fmt.Errorf("invalid len(ExtIDs)")
+		return DataStore{}, fmt.Errorf("invalid len(ExtIDs)")
 	}
 
 	// The first ExtID must declare the Protocol
 	if string(e.ExtIDs[0]) != Protocol {
-		return Metadata{}, fmt.Errorf("ExtIDs[0]: invalid protocol")
+		return DataStore{}, fmt.Errorf("ExtIDs[0]: invalid protocol")
 	}
 
 	// The second ExtID must be a 32 bytes hash.
 	if len(e.ExtIDs[1]) != 32 {
-		return Metadata{}, fmt.Errorf("ExtIDs[1]: invalid data hash length")
+		return DataStore{}, fmt.Errorf("ExtIDs[1]: invalid data hash length")
 	}
 	var dataHash factom.Bytes32
 	copy(dataHash[:], e.ExtIDs[1])
 
 	// Parse the JSON.
-	md := Metadata{DataHash: &dataHash, Entry: e}
+	md := DataStore{DataHash: &dataHash, Entry: e}
 	if err := json.Unmarshal(e.Content, &md); err != nil {
-		return Metadata{}, err
+		return DataStore{}, err
 	}
 
 	// Validate the version.
 	if md.Version != Version {
-		return Metadata{}, fmt.Errorf(`Content: unsupported "version"`)
+		return DataStore{}, fmt.Errorf(`Content: unsupported "version"`)
 	}
 
 	// Zero size data is prohibited.
 	if md.Size == 0 {
-		return Metadata{}, fmt.Errorf(`Content: invalid "size"`)
+		return DataStore{}, fmt.Errorf(`Content: invalid "size"`)
 	}
 
 	// We must have a DBI Start Hash.
 	if md.DBIStart == nil {
-		return Metadata{}, fmt.Errorf(`Content: missing "dbi-start"`)
+		return DataStore{}, fmt.Errorf(`Content: missing "dbi-start"`)
 	}
 
 	// Validate optional compression settings.
@@ -160,13 +160,13 @@ func ParseEntry(e factom.Entry) (Metadata, error) {
 		switch strings.ToLower(md.Format) {
 		case "zlib", "gzip":
 		default:
-			return Metadata{}, fmt.Errorf(
+			return DataStore{}, fmt.Errorf(
 				`Content: unsupported "compression"."format"`)
 		}
 
 		// Zero size data is prohibited.
 		if md.Compression.Size == 0 {
-			return Metadata{}, fmt.Errorf(
+			return DataStore{}, fmt.Errorf(
 				`Content: invalid "compression"."size"`)
 		}
 	}
@@ -179,15 +179,15 @@ const (
 	MaxLinkedDBIEHashCount = (factom.EntryMaxDataSize - 32 - 2) / 32
 )
 
-// Download all Data Block Index and Data Block Entries required to reconstruct
-// the on chain data, and then decompresses the data if necessary before
-// writing it to the given data io.Writer.
+// Get all Data Block Index and Data Block Entries required to reconstruct the
+// on chain data, and then decompresses the data if necessary before writing it
+// to the given data io.Writer.
 //
 // The Data Block Entries are downloaded concurrently as they are loaded from
 // the DBI.
 //
 // The sha256d hash of the data written to data, is verified.
-func (m Metadata) Download(ctx context.Context, c *factom.Client, data io.Writer) error {
+func (m DataStore) Get(ctx context.Context, c *factom.Client, data io.Writer) error {
 
 	// Get the on-chain size.
 	size := m.Size
@@ -216,8 +216,14 @@ func (m Metadata) Download(ctx context.Context, c *factom.Client, data io.Writer
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
+	n := runtime.NumCPU()
+	if totalDBCount < n {
+		totalDBCount = n
+	}
+
 	g, ctx := errgroup.WithContext(ctx)
-	for i := 0; i < runtime.NumCPU(); i++ {
+	for i := 0; i < n; i++ {
 		g.Go(func() error {
 			for dbE := range dbEs {
 				origCap := cap(dbE.Content)
