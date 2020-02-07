@@ -43,8 +43,8 @@ type Transaction struct {
 
 	Contract *factom.Bytes32 `json:"contract,omitempty"`
 
-	Func string `json:"func,omitempty"`
-	Args []Arg  `json:"args,omitempty"`
+	Func string            `json:"func,omitempty"`
+	Args []json.RawMessage `json:"args,omitempty"`
 
 	Metadata json.RawMessage `json:"metadata,omitempty"`
 
@@ -111,15 +111,20 @@ func NewTransaction(e factom.Entry, idKey *factom.Bytes32) (Transaction, error) 
 }
 
 type tRaw struct {
-	Inputs  json.RawMessage `json:"inputs"`
-	Outputs json.RawMessage `json:"outputs"`
-	Args    json.RawMessage `json:"args"`
-	*Transaction
+	Inputs      json.RawMessage `json:"inputs"`
+	Outputs     json.RawMessage `json:"outputs"`
+	Args        json.RawMessage `json:"args"`
+	Transaction *Transaction
 }
 
-func (t *tRaw) ExpectedJSONLen() int {
+func (tr *tRaw) ExpectedJSONLen() int {
 	expect := len(`{"inputs":,"outputs":}`) +
-		len(t.Inputs) + len(t.Outputs)
+		len(tr.Inputs) + len(tr.Outputs)
+	if len(tr.Args) > 0 {
+		expect += len(`,"args":""`) + len(tr.Args)
+	}
+
+	t := tr.Transaction
 	if t.Metadata != nil {
 		expect += len(`,"metadata":`) + len(t.Metadata)
 	}
@@ -128,9 +133,6 @@ func (t *tRaw) ExpectedJSONLen() int {
 	}
 	if len(t.Func) > 0 {
 		expect += len(`,"func":""`) + len(t.Func)
-	}
-	if len(t.Args) > 0 {
-		expect += len(`,"args":""`) + len(t.Args)
 	}
 	return expect
 }
