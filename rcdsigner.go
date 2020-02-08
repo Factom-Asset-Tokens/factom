@@ -37,23 +37,45 @@ type RCDSigner interface {
 	Sign(msg []byte) []byte
 }
 
-func ValidateRCD(rcd, sig, msg []byte) (Bytes32, error) {
+type RCDType byte
+
+func (r RCDType) String() string {
+	return fmt.Sprintf("RCDType%02x")
+}
+
+// ValidateRCD validates the rcd against the sig and msg. If a whitelist is
+// provided, then only those RCDTypes will be accepted. All other RCDTypes will
+// return "RCDTypeX not accepted". Omitting the whitelist allows all RCDTypes.
+func ValidateRCD(rcd, sig, msg []byte, whitelist ...RCDType) (Bytes32, error) {
 	if len(rcd) < 1 {
 		return Bytes32{}, fmt.Errorf("invalid RCD size")
 	}
+	rcdType := RCDType(rcd[0])
 	var validateRCD func(rcd, sig, msg []byte) (Bytes32, error)
-	switch rcd[0] {
+
+	if len(whitelist) > 0 {
+		whitemap := make(map[RCDType]struct{}, len(whitelist))
+		for _, rcdType := range whitelist {
+			whitemap[rcdType] = struct{}{}
+		}
+		if _, ok := whitemap[rcdType]; !ok {
+			return Bytes32{}, fmt.Errorf("%v not accepted", rcdType)
+		}
+	}
+
+	switch RCDType(rcd[0]) {
 	case RCDType01:
 		validateRCD = ValidateRCD01
 	default:
 		return Bytes32{}, fmt.Errorf("unsupported RCD")
 	}
+
 	return validateRCD(rcd, sig, msg)
 }
 
 const (
 	// RCDType is the magic number identifying the currenctly accepted RCD.
-	RCDType01 byte = 0x01
+	RCDType01 RCDType = 0x01
 	// RCDSize is the size of the RCD.
 	RCDType01Size = ed25519.PublicKeySize + 1
 	// SignatureSize is the size of the ed25519 signatures.
@@ -64,7 +86,7 @@ func ValidateRCD01(rcd, sig, msg []byte) (Bytes32, error) {
 	if len(rcd) != RCDType01Size {
 		return Bytes32{}, fmt.Errorf("invalid RCD size")
 	}
-	if rcd[0] != RCDType01 {
+	if RCDType(rcd[0]) != RCDType01 {
 		return Bytes32{}, fmt.Errorf("invalid RCD type")
 	}
 	if len(sig) != RCDType01SigSize {

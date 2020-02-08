@@ -10,11 +10,7 @@ import (
 	"github.com/Factom-Asset-Tokens/factom/jsonlen"
 )
 
-var rng *rand.Rand
-
-func init() {
-	rng = rand.New(rand.NewSource(time.Now().UnixNano()))
-}
+var rng = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 // Sign the RCD/Sig ID Salt + Timestamp Salt + Chain ID Salt + Content of the
 // factom.Entry and add the RCD + signature pairs for the given addresses to

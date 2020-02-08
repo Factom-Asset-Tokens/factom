@@ -187,7 +187,7 @@ func (key SK1Key) ID1Key() ID1Key {
 
 // RCD computes the RCD for key.
 func (key SK1Key) RCD() []byte {
-	return append([]byte{RCDType01}, key.PublicKey()[:]...)
+	return append([]byte{byte(RCDType01)}, key.PublicKey()[:]...)
 }
 
 // Sign the msg.
@@ -337,7 +337,7 @@ func (key SK2Key) ID2Key() ID2Key {
 
 // RCD computes the RCD for key.
 func (key SK2Key) RCD() []byte {
-	return append([]byte{RCDType01}, key.PublicKey()[:]...)
+	return append([]byte{byte(RCDType01)}, key.PublicKey()[:]...)
 }
 
 // Sign the msg.
@@ -487,7 +487,7 @@ func (key SK3Key) ID3Key() ID3Key {
 
 // RCD computes the RCD for key.
 func (key SK3Key) RCD() []byte {
-	return append([]byte{RCDType01}, key.PublicKey()[:]...)
+	return append([]byte{byte(RCDType01)}, key.PublicKey()[:]...)
 }
 
 // Sign the msg.
@@ -637,7 +637,7 @@ func (key SK4Key) ID4Key() ID4Key {
 
 // RCD computes the RCD for key.
 func (key SK4Key) RCD() []byte {
-	return append([]byte{RCDType01}, key.PublicKey()[:]...)
+	return append([]byte{byte(RCDType01)}, key.PublicKey()[:]...)
 }
 
 // Sign the msg.
