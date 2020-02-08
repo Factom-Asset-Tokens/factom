@@ -428,7 +428,7 @@ func sha256d(data []byte) [sha256.Size]byte {
 
 // RCD computes the RCD for adr.
 func (adr FsAddress) RCD() []byte {
-	return append([]byte{RCDType01}, adr.PublicKey()[:]...)
+	return append([]byte{byte(RCDType01)}, adr.PublicKey()[:]...)
 }
 
 // Sign the msg.

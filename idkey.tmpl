@@ -179,7 +179,7 @@ func (key SK{{.ID}}Key) ID{{.ID}}Key() ID{{.ID}}Key {
 
 // RCD computes the RCD for key.
 func (key SK{{.ID}}Key) RCD() []byte {
-	return append([]byte{RCDType01}, key.PublicKey()[:]...)
+	return append([]byte{byte(RCDType01)}, key.PublicKey()[:]...)
 }
 
 // Sign the msg.

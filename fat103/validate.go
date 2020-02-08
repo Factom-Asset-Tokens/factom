@@ -35,7 +35,8 @@ import (
 // Validate validates the structure of the ExtIDs of the factom.Entry to make
 // sure that it has a valid timestamp salt and a valid set of RCD/signature
 // pairs.
-func Validate(e factom.Entry, expected map[factom.Bytes32]struct{}, flag int) error {
+func Validate(e factom.Entry, expected map[factom.Bytes32]struct{},
+	whitelist ...factom.RCDType) error {
 	if len(expected) == 0 || len(e.ExtIDs) != 2*len(expected)+1 {
 		return fmt.Errorf("invalid number of ExtIDs")
 	}
@@ -81,7 +82,7 @@ func Validate(e factom.Entry, expected map[factom.Bytes32]struct{}, flag int) er
 		sig := rcdSigs[i+1]
 		msgHash := sha512.Sum512(msg[start:])
 
-		rcdHash, err := factom.ValidateRCD(rcd, sig, msgHash[:], flag)
+		rcdHash, err := factom.ValidateRCD(rcd, sig, msgHash[:], whitelist...)
 		if err != nil {
 			return fmt.Errorf("ExtIDs[%v]: %w", i+1, err)
 		}
