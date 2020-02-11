@@ -215,6 +215,12 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 	fb.bodySize = binary.BigEndian.Uint32(data[i : i+4])
 	i += 4
 
+	// If the declared txCount would require
+	if int(txCount*TransactionMinTotalSize) > len(data) {
+		return fmt.Errorf("unreasonable Transaction count")
+
+	}
+
 	// Header is all data we've read so far
 	headerHash := sha256.Sum256(data[:i])
 	bodyMRElements := make([][]byte, int(txCount)+len(fb.endOfPeriod))

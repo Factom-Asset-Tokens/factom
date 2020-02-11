@@ -89,7 +89,9 @@ func (db DBlock) IsPopulated() bool {
 		db.FullHash != nil &&
 		db.BodyMR != nil &&
 		db.PrevKeyMR != nil &&
-		db.PrevFullHash != nil
+		db.PrevFullHash != nil &&
+		db.FBlock.KeyMR != nil &&
+		!db.Timestamp.IsZero()
 }
 
 // Get queries factomd for the Directory Block at db.Height. After a
@@ -236,7 +238,7 @@ func (db *DBlock) UnmarshalBinary(data []byte) error {
 	i += 4
 
 	// Ensure we have enough data left to read all of the EBlocks.
-	if len(data[i:]) < eBlockCount*DBlockEBlockSize {
+	if eBlockCount*DBlockEBlockSize > len(data[i:]) {
 		return fmt.Errorf("insufficient length")
 	}
 
@@ -372,10 +374,17 @@ func (db DBlock) MarshalBinary() ([]byte, error) {
 	binary.BigEndian.PutUint32(data[i:], db.Height)
 	i += 4
 
-	binary.BigEndian.PutUint32(data[i:], uint32(len(db.EBlocks)))
+	binary.BigEndian.PutUint32(data[i:], uint32(len(db.EBlocks)+1))
 	i += 4
 
+	var fblockInserted bool
 	for _, eb := range db.EBlocks {
+		if !fblockInserted &&
+			bytes.Compare(fBlockChainID[:], eb.ChainID[:]) < 0 {
+			i += copy(data[i:], fBlockChainID[:])
+			i += copy(data[i:], db.FBlock.KeyMR[:])
+			fblockInserted = true
+		}
 		i += copy(data[i:], eb.ChainID[:])
 		i += copy(data[i:], eb.KeyMR[:])
 	}
@@ -383,9 +392,9 @@ func (db DBlock) MarshalBinary() ([]byte, error) {
 }
 
 // MarshalBinaryLen returns the length of the binary encoding of db,
-//      DBlockHeaderSize + len(db.EBlocks)*DBlockEBlockSize
+//      DBlockHeaderSize + (len(db.EBlocks)+1)*DBlockEBlockSize
 func (db DBlock) MarshalBinaryLen() int {
-	return DBlockHeaderSize + len(db.EBlocks)*DBlockEBlockSize
+	return DBlockHeaderSize + (len(db.EBlocks)+1)*DBlockEBlockSize
 }
 
 // EBlock efficiently finds and returns the *EBlock in db.EBlocks for the given

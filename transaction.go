@@ -160,7 +160,10 @@ const (
 		1 + // Input count
 		1 + // Output count
 		1 // EC output count
-
+	TransactionMinTotalSize = TransactionHeaderSize +
+		32 + 1 + // 1 Input
+		32 + 1 + // 1 Output
+		33 + 32 // RCD01 and Signature
 )
 
 // UnmarshalBinary unmarshals and validates the first Transaction from data,

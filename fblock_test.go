@@ -133,18 +133,18 @@ func TestFBlock_UnmarshalBinary(t *testing.T) {
 
 	// To ensure there is not panics and all errors are caught
 	t.Run("UnmarshalBinary/Random", func(t *testing.T) {
-		return
-		d := make([]byte, rand.Intn(20000))
+		buf := make([]byte, 20000)
+		fBlockChainID := FBlockChainID()
 		for i := 0; i < 5000; i++ {
+			d := buf[:rand.Intn(15000)+5000]
 			rand.Read(d)
 
 			if len(d) > 32 {
-				fChain := FBlockChainID()
-				copy(d[:32], fChain[:])
+				copy(d[:32], fBlockChainID[:])
 			}
 
-			f := FBlock{}
-			err := f.UnmarshalBinary(d)
+			var fb FBlock
+			err := fb.UnmarshalBinary(d)
 			if err == nil {
 				t.Errorf("expected an error")
 			}
