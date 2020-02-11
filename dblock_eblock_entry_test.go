@@ -36,6 +36,7 @@ var courtesyNode = "https://courtesy-node.factom.com/v2"
 func TestDataStructures(t *testing.T) {
 	height := uint32(166587)
 	c := NewClient()
+	c.Factomd.Timeout = 8 * time.Second
 	var db DBlock
 	db.Height = height
 	t.Run("DBlock", func(t *testing.T) {
@@ -56,7 +57,7 @@ func TestDataStructures(t *testing.T) {
 		assert.NoError(db.Get(nil, c)) // Take the early exit code path.
 
 		// Validate this DBlock.
-		assert.Len(db.EBlocks, 7)
+		assert.Len(db.EBlocks, 6)
 		assert.Equal(height, db.Height)
 		for _, eb := range db.EBlocks {
 			assert.NotNil(eb.ChainID)
@@ -100,7 +101,7 @@ func TestDataStructures(t *testing.T) {
 		// This EBlock has multiple entries we can validate against.
 		// We'll use a pointer here so that we can reuse this EBlock in
 		// the next test.
-		eb := &db.EBlocks[4]
+		eb := &db.EBlocks[3]
 
 		// We start off unpopulated.
 		require.False(eb.IsPopulated())
@@ -192,7 +193,7 @@ func TestDataStructures(t *testing.T) {
 		// We'll use the DBlock and EBlock from the last test, so they
 		// must be populated to proceed.
 		require.True(db.IsPopulated())
-		eb := db.EBlocks[4]
+		eb := db.EBlocks[3]
 		require.True(eb.IsPopulated())
 
 		e := eb.Entries[0]

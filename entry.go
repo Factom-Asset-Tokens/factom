@@ -43,13 +43,23 @@ type Entry struct {
 	// its ChainID, Hash, and Timestamp.
 	ChainID   *Bytes32  `json:"chainid,omitempty"`
 	Hash      *Bytes32  `json:"entryhash,omitempty"`
-	Timestamp time.Time `json:"-"`
+	Timestamp time.Time `json:"-"` // Established by EBlock
 
 	// Entry.Get populates the Content and ExtIDs.
 	ExtIDs  []Bytes `json:"extids"`
 	Content Bytes   `json:"content"`
 
-	data Bytes
+	// marshalBinaryCache is the binary data of the Entry. It is cached by
+	// UnmarshalBinary so it can be re-used by MarshalBinary.
+	marshalBinaryCache []byte
+}
+
+// ClearMarshalBinaryCache discards the cached MarshalBinary data.
+//
+// Subsequent calls to MarshalBinary will re-construct the data from the fields
+// of the Entry.
+func (e *Entry) ClearMarshalBinaryCache() {
+	e.marshalBinaryCache = nil
 }
 
 // IsPopulated returns true if e has already been successfully populated by a
@@ -189,9 +199,9 @@ func (e *Entry) ComposeCreate(
 func (c *Client) Commit(ctx context.Context, commit []byte) error {
 	var method string
 	switch len(commit) {
-	case commitLen:
+	case commitSize:
 		method = "commit-entry"
-	case chainCommitLen:
+	case chainCommitSize:
 		method = "commit-chain"
 	default:
 		return fmt.Errorf("invalid commit length")
@@ -256,13 +266,13 @@ func (e *Entry) Compose(es EsAddress) (
 }
 
 const (
-	commitLen = 1 + // version
+	commitSize = 1 + // version
 		6 + // timestamp
 		32 + // entry hash
 		1 + // ec cost
 		32 + // ec pub
 		64 // sig
-	chainCommitLen = commitLen +
+	chainCommitSize = commitSize +
 		32 + // chain id hash
 		32 // commit weld
 )
@@ -305,18 +315,19 @@ const (
 func GenerateCommit(es EsAddress, entrydata []byte, hash *Bytes32,
 	newChain bool) ([]byte, Bytes32) {
 
-	commitLen := commitLen
+	commitSize := commitSize
 	if newChain {
-		commitLen = chainCommitLen
+		commitSize = chainCommitSize
 	}
 
-	commit := make([]byte, commitLen)
+	commit := make([]byte, commitSize)
 
 	i := 1 // Skip version byte
 
 	// ms is a timestamp salt in milliseconds.
 	ms := time.Now().Unix()*1e3 + rand.Int63n(1000)
-	i += putInt48(commit[i:], ms)
+	putInt48BE(commit[i:], ms)
+	i += 6
 
 	if newChain {
 		chainID := entrydata[1 : 1+len(Bytes32{})]
@@ -339,28 +350,14 @@ func GenerateCommit(es EsAddress, entrydata []byte, hash *Bytes32,
 	txID := sha256.Sum256(commit[:i])
 
 	// Public Key
-	signedDataLen := i
+	signedDataSize := i
 	i += copy(commit[i:], es.PublicKey())
 
 	// Signature
-	sig := ed25519.Sign(es.PrivateKey(), commit[:signedDataLen])
+	sig := ed25519.Sign(es.PrivateKey(), commit[:signedDataSize])
 	copy(commit[i:], sig)
 
 	return commit, txID
-}
-
-// putInt48 puts the least significant 48 bits of x into the first six bytes
-// of data in Big Endian. The number of bytes written, 6, is returned.
-//
-// If data is less than 6 bytes long this will panic.
-//
-// If x is greater than 1<<48 - 1 then data will be garbage.
-func putInt48(data []byte, x int64) int {
-	const size = 6
-	for i := 0; i < size; i++ {
-		data[i] = byte(x >> (8 * (size - 1 - i)))
-	}
-	return size
 }
 
 // NewChainCost is the fixed added cost of creating a new chain.
@@ -371,10 +368,10 @@ const NewChainCost = 10
 //
 // Set newChain to true to add the NewChainCost.
 func EntryCost(size int, newChain bool) (uint8, error) {
-	if size < EntryHeaderLen {
+	if size < EntryHeaderSize {
 		return 0, fmt.Errorf("invalid size")
 	}
-	size -= EntryHeaderLen
+	size -= EntryHeaderSize
 	if size > 10240 {
 		return 0, fmt.Errorf("Entry cannot be larger than 10KB")
 	}
@@ -400,11 +397,11 @@ func (e Entry) Cost() (uint8, error) {
 
 // MarshalBinaryLen returns the total encoded length of e.
 func (e Entry) MarshalBinaryLen() int {
-	extIDTotalLen := len(e.ExtIDs) * 2 // Two byte len(ExtID) per ExtID
+	extIDTotalSize := len(e.ExtIDs) * 2 // Two byte len(ExtID) per ExtID
 	for _, extID := range e.ExtIDs {
-		extIDTotalLen += len(extID)
+		extIDTotalSize += len(extID)
 	}
-	return EntryHeaderLen + extIDTotalLen + len(e.Content)
+	return EntryHeaderSize + extIDTotalSize + len(e.Content)
 }
 
 // MarshalBinary returns the raw Entry data for e. This will return an error if
@@ -420,25 +417,25 @@ func (e Entry) MarshalBinaryLen() int {
 //
 // https://github.com/FactomProject/FactomDocs/blob/master/factomDataStructureDetails.md#entry
 func (e Entry) MarshalBinary() ([]byte, error) {
-	if len(e.data) > 0 {
-		return e.data, nil
+	if len(e.marshalBinaryCache) > 0 {
+		return e.marshalBinaryCache, nil
 	}
 
 	if e.ChainID == nil {
 		return nil, fmt.Errorf("missing ChainID")
 	}
 
-	totalLen := e.MarshalBinaryLen()
-	if totalLen > EntryMaxTotalLen {
-		return nil, fmt.Errorf("length exceeds %v", EntryMaxTotalLen)
+	totalSize := e.MarshalBinaryLen()
+	if totalSize > EntryMaxTotalSize {
+		return nil, fmt.Errorf("length exceeds %v", EntryMaxTotalSize)
 	}
 
 	// Header, version byte 0x00
-	data := make([]byte, totalLen)
+	data := make([]byte, totalSize)
 	i := 1
 	i += copy(data[i:], e.ChainID[:])
 	binary.BigEndian.PutUint16(data[i:i+2],
-		uint16(totalLen-len(e.Content)-EntryHeaderLen))
+		uint16(totalSize-len(e.Content)-EntryHeaderSize))
 	i += 2
 
 	// Payload
@@ -450,21 +447,19 @@ func (e Entry) MarshalBinary() ([]byte, error) {
 	}
 	copy(data[i:], e.Content)
 
-	e.data = data
-
 	return data, nil
 }
 
-// EntryHeaderLen is the exact length of an Entry header.
-const EntryHeaderLen = 1 + // version
+// EntryHeaderSize is the exact length of an Entry header.
+const EntryHeaderSize = 1 + // version
 	32 + // chain id
 	2 // total len
 
-// EntryMaxDataLen is the maximum data length of an Entry.
-const EntryMaxDataLen = 10240
+// EntryMaxDataSize is the maximum data length of an Entry.
+const EntryMaxDataSize = 10240
 
-// EntryMaxTotalLen is the maximum total encoded length of an Entry.
-const EntryMaxTotalLen = EntryMaxDataLen + EntryHeaderLen
+// EntryMaxTotalSize is the maximum total encoded length of an Entry.
+const EntryMaxTotalSize = EntryMaxDataSize + EntryHeaderSize
 
 // UnmarshalBinary unmarshals raw entry data into e.
 //
@@ -488,7 +483,7 @@ const EntryMaxTotalLen = EntryMaxDataLen + EntryHeaderLen
 // https://github.com/FactomProject/FactomDocs/blob/master/factomDataStructureDetails.md#entry
 func (e *Entry) UnmarshalBinary(data []byte) error {
 
-	if len(data) < EntryHeaderLen || len(data) > EntryMaxTotalLen {
+	if len(data) < EntryHeaderSize || len(data) > EntryMaxTotalSize {
 		return fmt.Errorf("invalid length")
 	}
 
@@ -508,23 +503,23 @@ func (e *Entry) UnmarshalBinary(data []byte) error {
 		e.ChainID = &chainID
 	}
 
-	extIDTotalLen := int(binary.BigEndian.Uint16(data[i : i+2]))
-	if extIDTotalLen == 1 || EntryHeaderLen+extIDTotalLen > len(data) {
+	extIDTotalSize := int(binary.BigEndian.Uint16(data[i : i+2]))
+	if extIDTotalSize == 1 || EntryHeaderSize+extIDTotalSize > len(data) {
 		return fmt.Errorf("invalid ExtIDs length")
 	}
 	i += 2
 
 	e.ExtIDs = e.ExtIDs[0:0]
 
-	for i < EntryHeaderLen+extIDTotalLen {
-		extIDLen := int(binary.BigEndian.Uint16(data[i : i+2]))
-		if i+2+extIDLen > EntryHeaderLen+extIDTotalLen {
+	for i < EntryHeaderSize+extIDTotalSize {
+		extIDSize := int(binary.BigEndian.Uint16(data[i : i+2]))
+		if i+2+extIDSize > EntryHeaderSize+extIDTotalSize {
 			return fmt.Errorf("error parsing ExtIDs")
 		}
 		i += 2
 
-		e.ExtIDs = append(e.ExtIDs, Bytes(data[i:i+extIDLen]))
-		i += extIDLen
+		e.ExtIDs = append(e.ExtIDs, Bytes(data[i:i+extIDSize]))
+		i += extIDSize
 	}
 
 	if e.Content == nil {
@@ -544,7 +539,7 @@ func (e *Entry) UnmarshalBinary(data []byte) error {
 	}
 
 	// Cache data for efficient marshaling.
-	e.data = data
+	e.marshalBinaryCache = data
 
 	return nil
 }

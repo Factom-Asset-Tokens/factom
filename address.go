@@ -411,7 +411,7 @@ func (c *Client) removeAddress(ctx context.Context, adrStr string) error {
 
 // FAAddress returns the FAAddress corresponding to adr.
 func (adr FsAddress) FAAddress() FAAddress {
-	return sha256d(adr.RCD())
+	return adr.RCD().FAAddress()
 }
 
 // ECAddress returns the ECAddress corresponding to adr.
@@ -420,14 +420,8 @@ func (adr EsAddress) ECAddress() (ec ECAddress) {
 	return
 }
 
-// sha256(sha256(data))
-func sha256d(data []byte) [sha256.Size]byte {
-	hash := sha256.Sum256(data)
-	return sha256.Sum256(hash[:])
-}
-
 // RCD computes the RCD for adr.
-func (adr FsAddress) RCD() []byte {
+func (adr FsAddress) RCD() RCD {
 	return append([]byte{byte(RCDType01)}, adr.PublicKey()[:]...)
 }
 

@@ -1,493 +1,401 @@
+// MIT License
+//
+// Copyright 2018 Canonical Ledgers, LLC
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+// IN THE SOFTWARE.
+
 package factom
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
-	"encoding/binary"
 	"fmt"
 	"time"
 
 	"github.com/Factom-Asset-Tokens/factom/varintf"
 )
 
-type FactoidTransaction struct {
-	// TODO: The header is usually at the top level, is this ok?
-	FactoidTransactionHeader
+// Transaction is a Factoid Transaction which is stored in the FBlock.
+//
+// Transactions can be between FAAddresses, or from an FAAddress to an
+// ECAddress.
+//
+// Transaction amounts are all delimited in Factoshis.
+type Transaction struct {
+	// ID the sha256 hash of the binary Transaction ledger, which includes
+	// the header, timestamp salt, and all inputs and outputs.
+	ID *Bytes32
 
-	FCTInputs  []FactoidTransactionIO
-	FCTOutputs []FactoidTransactionIO
-	ECOutputs  []FactoidTransactionIO
-	Signatures []FactoidTransactionSignature
-}
+	// Timestamp is established by the FBlock. It is only populated if the
+	// Transaction was unmarshaled from within an FBlock
+	Timestamp time.Time
 
-type FactoidTransactionHeader struct {
-	// TransactionID is not in the marshalled binary
-	TransactionID *Bytes32
-
-	Version uint64
 	// TimestampSalt is accurate to the millisecond
 	TimestampSalt time.Time
+
+	FCTInputs  []AddressAmount
+	FCTOutputs []AddressAmount
+	ECOutputs  []AddressAmount
+	Signatures []RCDSignature
+
+	// marshalBinaryCache is the binary data of the DBlock. It is cached by
+	// UnmarshalBinary so it can be re-used by MarshalBinary.
+	marshalBinaryCache []byte
 }
 
-// factoidTransactionIOs is used as a wrapper for an array of IOs to reuse the
-// functionality. This is compared to writing your own loop to handle
-// lists of io behavior.
-type factoidTransactionIOs []FactoidTransactionIO
-
-type FactoidTransactionIO struct {
-	Amount uint64
-	// Address can be an SHA256d(RCD) for FCT in/out, or a public key for EC out.
-	// It is the encoded bytes into the human readable addresses
-	Address Bytes32
+// ClearMarshalBinaryCache discards the cached MarshalBinary data.
+//
+// Subsequent calls to MarshalBinary will re-construct the data from the fields
+// of the DBlock.
+func (tx *Transaction) ClearMarshalBinaryCache() {
+	tx.marshalBinaryCache = nil
 }
 
-type FactoidTransactionSignature struct {
-	// SHA256d(RCD) == FactoidIOAddress for the inputs
-	ReedeemCondition RCD1
-	SignatureBlock   Bytes
+// AddressAmount relates a 32 byte Address payload and an Amount.
+//
+// Bytes are used for the Address for improved unmarshaling efficiency of
+// Transactions.
+type AddressAmount struct {
+	Address Bytes
+	Amount  uint64
 }
 
-// IsPopulated returns true if f has already been successfully populated by a
-// call to Get. IsPopulated returns false if f.FCTInputs, or f.Signatures are
-// nil, or if f.Timestamp is zero.
-func (f FactoidTransaction) IsPopulated() bool {
-	return f.FCTInputs != nil && // This array should not be nil
-		f.Signatures != nil &&
-		!f.TimestampSalt.IsZero()
+// AddressBytes32 converts the Address to Bytes32.
+func (adr AddressAmount) AddressBytes32() Bytes32 {
+	var b32 Bytes32
+	copy(b32[:], adr.Address)
+	return b32
+}
+
+// FAAddress converts the Address to an FAAddress.
+func (adr AddressAmount) FAAddress() FAAddress {
+	return FAAddress(adr.AddressBytes32())
+}
+
+// ECAddress converts the Address to an ECAddress.
+func (adr AddressAmount) ECAddress() ECAddress {
+	return ECAddress(adr.AddressBytes32())
+}
+
+// RCDSignature relates an RCD and a corresponding Signature of a signed
+// Transaction.
+type RCDSignature struct {
+	RCD       RCD
+	Signature Bytes
+}
+
+// ValidateType01 validates the RCD and Signature against the msg, which is
+// normally the Transaction Binary Ledger.
+func (rs RCDSignature) ValidateType01(msg []byte) error {
+	return rs.RCD.ValidateType01(rs.Signature, msg)
+}
+
+// UnmarshalBinary unmarshals the variable length RCD and Signature block into
+// rs.
+//
+// Use Len to determine how much data was read.
+func (rs *RCDSignature) UnmarshalBinary(data []byte) error {
+	if err := rs.RCD.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	data = data[len(rs.RCD):] // Skip past RCD
+	if len(data) < rs.RCD.SignatureBlockSize() {
+		return fmt.Errorf("%v: invalid signature block size", rs.RCD.Type())
+	}
+	rs.Signature = data[:rs.RCD.SignatureBlockSize()]
+	return nil
+}
+
+// MarshalBinary concatenates the RCD and the signature.
+func (rs RCDSignature) MarshalBinary() ([]byte, error) {
+	return append(rs.RCD, rs.Signature...), nil
+}
+
+// Len is the total size of the RCD and Signature.
+func (rs RCDSignature) Len() int {
+	return len(rs.RCD) + len(rs.Signature)
 }
 
 // IsPopulated returns true if s has already been successfully populated by a
 // call to Get. IsPopulated returns false if s.SignatureBlock or
 // s.ReedeemCondition are nil
-func (s FactoidTransactionSignature) IsPopulated() bool {
-	return s.SignatureBlock != nil
+func (rs RCDSignature) IsPopulated() bool {
+	return rs.RCD != nil && rs.Signature != nil
 }
 
-// Valid returns if the inputs of the factoid transaction are properly signed
-// by the redeem conditions. It will also validate the total inputs is greater
-// than the total outputs.
-func (f *FactoidTransaction) Valid() bool {
-	if !f.IsPopulated() {
-		return false
+// IsPopulated returns true if tx has already been successfully populated by a
+// call to Get. IsPopulated returns false if tx.FCTInputs is empty, or if
+// tx.Signatures is not equal in length to the tx.FCTInputs, or if
+// tx.TimestampSalt is zero.
+func (tx Transaction) IsPopulated() bool {
+	return len(tx.FCTInputs) > 0 &&
+		len(tx.Signatures) == len(tx.FCTInputs) &&
+		!tx.TimestampSalt.IsZero()
+}
+
+const (
+	// TransactionVersion is the magic number Version byte in all
+	// Transactions.
+	TransactionVersion byte = 0x02
+
+	// TransactionHeaderSize is the size of a Binary Transaction Header.
+	TransactionHeaderSize = 1 + // Version byte
+		6 + // Timestamp salt
+		1 + // Input count
+		1 + // Output count
+		1 // EC output count
+
+)
+
+// UnmarshalBinary unmarshals and validates the first Transaction from data,
+// which may include subsequent Transactions. If no error is returned, the
+// Transaction is valid, including all RCDs and signatures.
+//
+// Use MarshalBinaryLen to efficiently determine the number of bytes read from
+// data.
+func (tx *Transaction) UnmarshalBinary(data []byte) error {
+	// Parse header
+	if len(data) < TransactionHeaderSize {
+		return fmt.Errorf("insufficient length")
 	}
 
-	// Validate amounts
-	if f.TotalFCTInputs() < f.TotalFCTOutputs()+f.TotalECOutput() {
-		return false
+	// Only Version 0x02 is supported.
+	if data[0] != TransactionVersion {
+		return fmt.Errorf("invalid version")
 	}
 
-	// Validate signatures
-	if len(f.FCTInputs) != len(f.Signatures) {
-		return false
-	}
+	i := 1
 
-	msg, err := f.MarshalLedgerBinary()
-	if err != nil {
-		return false
-	}
+	msTsSalt := getInt48BE(data[i:])
+	tx.TimestampSalt = time.Unix(0, msTsSalt*1e6)
+	i += 6
 
-	for i := range f.FCTInputs {
-		expAddr := f.Signatures[i].ReedeemCondition.Address()
+	fctInputCount := uint(data[i])
+	i++
+	fctOutputCount := uint(data[i])
+	i++
+	ecOutputCount := uint(data[i])
+	i++
 
-		// RCD should match the input
-		if bytes.Compare(expAddr[:], f.FCTInputs[i].Address[:]) != 0 {
-			return false
+	adrs := make([]AddressAmount, fctInputCount+fctOutputCount+ecOutputCount)
+
+	var inputs uint64
+	var outputs uint64
+	for j := range adrs {
+		amount, size := varintf.Decode(data[i:])
+		if size == 0 {
+			return fmt.Errorf("insufficient length")
+		}
+		if size < 0 {
+			return fmt.Errorf("invalid amount")
+		}
+		i += size
+
+		if len(data[i:]) < 32 {
+			return fmt.Errorf("insufficient length")
 		}
 
-		if !f.Signatures[i].Validate(msg) {
-			return false
+		adr := &adrs[j]
+		adr.Amount = amount
+		adr.Address = data[i : i+32]
+		i += 32
+
+		if uint(j) < fctInputCount {
+			inputs += amount
+		} else {
+			outputs += amount
 		}
 	}
 
-	return true
-}
-
-func (f *FactoidTransaction) TotalFCTInputs() (total uint64) {
-	return factoidTransactionIOs(f.FCTInputs).TotalAmount()
-}
-
-func (f *FactoidTransaction) TotalFCTOutputs() (total uint64) {
-	return factoidTransactionIOs(f.FCTOutputs).TotalAmount()
-}
-
-// TotalECOutput is delimated in factoishis
-func (f *FactoidTransaction) TotalECOutput() (total uint64) {
-	return factoidTransactionIOs(f.ECOutputs).TotalAmount()
-}
-
-func (s factoidTransactionIOs) TotalAmount() (total uint64) {
-	for _, io := range s {
-		total += io.Amount
-	}
-	return
-}
-
-func (s FactoidTransactionSignature) Validate(msg Bytes) bool {
-	return s.ReedeemCondition.Validate(msg, s.SignatureBlock)
-}
-
-// Get queries factomd for the entry corresponding to f.TransactionID, which
-// must be not nil. After a successful call all inputs, outputs, and
-// the header will be populated
-func (f *FactoidTransaction) Get(ctx context.Context, c *Client) error {
-	// TODO: Test this functionality
-	// If the TransactionID is nil then we have nothing to query for.
-	if f.TransactionID == nil {
-		return fmt.Errorf("txid is nil")
-	}
-	// If the Transaction is already populated then there is nothing to do. If
-	// the Hash is nil, we cannot populate it anyway.
-	if f.IsPopulated() {
-		return nil
+	if outputs > inputs {
+		return fmt.Errorf("outputs exceed inputs")
 	}
 
-	params := struct {
-		Hash *Bytes32 `json:"hash"`
-	}{Hash: f.TransactionID}
-	var result struct {
-		Data Bytes `json:"data"`
-	}
-	if err := c.FactomdRequest(ctx, "raw-data", params, &result); err != nil {
-		return err
+	ledger := data[:i]
+
+	tx.FCTInputs = adrs[:fctInputCount]
+	adrs = adrs[fctInputCount:]
+	tx.FCTOutputs = adrs[:fctOutputCount]
+	tx.ECOutputs = adrs[fctOutputCount:]
+
+	tx.Signatures = make([]RCDSignature, fctInputCount)
+
+	for j := range tx.Signatures {
+		rcdSig := &tx.Signatures[j]
+		if err := rcdSig.UnmarshalBinary(data[i:]); err != nil {
+			return err
+		}
+		i += rcdSig.Len()
+
+		// Validate RCD
+		rcdHash := rcdSig.RCD.Hash()
+		if bytes.Compare(tx.FCTInputs[j].Address, rcdHash[:]) != 0 {
+			return fmt.Errorf("invalid RCD hash")
+		}
+		if err := rcdSig.ValidateType01(ledger); err != nil {
+			return err
+		}
 	}
 
-	if err := f.UnmarshalBinary(result.Data); err != nil {
-		return err
+	txID := Bytes32(sha256.Sum256(ledger))
+	if tx.ID == nil {
+		tx.ID = &txID
+	} else if *tx.ID != txID {
+		return fmt.Errorf("invalid TxID")
 	}
+
+	tx.marshalBinaryCache = data[:i]
 
 	return nil
 }
 
-// ComputeTransactionID computes the txid for a given transaction. The txid is
-// the sha256 of the ledger fields in a factoid transaction. The ledger fields
-// exclude the signature block of the transaction
-func (f *FactoidTransaction) ComputeTransactionID() (Bytes32, error) {
-	data, err := f.MarshalLedgerBinary()
-	if err != nil {
-		return Bytes32{}, err
-	}
-
-	return f.computeTransactionID(data)
-}
-
-func (f *FactoidTransaction) computeTransactionID(ledgerBinary Bytes) (Bytes32, error) {
-	txid := Bytes32(sha256.Sum256(ledgerBinary))
-	return txid, nil
-}
-
-// ComputeFullHash computes the fullhash for a given transaction. The fullhash
-// is the sha256 of all the fields in a factoid transaction.
-func (f *FactoidTransaction) ComputeFullHash() (*Bytes32, error) {
-	data, err := f.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	txid := Bytes32(sha256.Sum256(data))
-	return &txid, nil
-}
-
-// MarshalLedgerBinary marshals the transaction ledger fields to their
-// binary representation. This excludes the signature blocks
-func (f *FactoidTransaction) MarshalLedgerBinary() ([]byte, error) {
-	// TODO: More checks up front?
-	if !f.IsPopulated() {
+// MarshalBinaryLedger marshals the header, inputs, outputs, and EC outputs of
+// the Transaction. This is so that the data can be conveniently signed or
+// hashed.
+func (tx Transaction) MarshalBinaryLedger() ([]byte, error) {
+	if !tx.IsPopulated() {
 		return nil, fmt.Errorf("not populated")
 	}
 
-	// It's very difficult to know the size before marshaling, as
-	// each in/out has a varint so make the buffer at the end
-
-	// The header bytes
-	header, err := f.MarshalHeaderBinary()
-	if err != nil {
-		return nil, err
+	if len(tx.FCTInputs) > 256 ||
+		len(tx.FCTOutputs) > 256 ||
+		len(tx.ECOutputs) > 256 {
+		return nil, fmt.Errorf("too many inputs or outputs")
 	}
 
-	// Inputs
-	inputs, err := factoidTransactionIOs(f.FCTInputs).MarshalBinary()
-	if err != nil {
-		return nil, err
+	if len(tx.FCTInputs) != len(tx.Signatures) {
+		return nil, fmt.Errorf("number of inputs and signatures differ")
 	}
 
-	// FCT Outputs
-	fctout, err := factoidTransactionIOs(f.FCTOutputs).MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
+	data := make([]byte, tx.MarshalBinaryLen())
 
-	// EC Outputs
-	ecout, err := factoidTransactionIOs(f.ECOutputs).MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	data := make([]byte, len(header)+len(inputs)+len(fctout)+len(ecout))
 	var i int
-	i += copy(data[i:], header)
-	i += copy(data[i:], inputs)
-	i += copy(data[i:], fctout)
-	i += copy(data[i:], ecout)
+	data[i] = TransactionVersion
+	i++
 
-	return data, nil
-}
-
-// TODO: Re-eval how to do this. Kinda different from the rest
-func (f *FactoidTransaction) MarshalBinary() ([]byte, error) {
-	// TODO: More checks up front?
-	if !f.IsPopulated() {
-		return nil, fmt.Errorf("not populated")
-	}
-
-	data, err := f.MarshalLedgerBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, s := range f.Signatures {
-		sig, err := s.MarshalBinary()
-		if err != nil {
-			return nil, err
-		}
-		data = append(data, sig...)
-	}
-
-	return data, nil
-}
-
-// MarshalHeaderBinary marshals the transaction's header to its binary
-// representation. See UnmarshalHeaderBinary for encoding details.
-func (f *FactoidTransaction) MarshalHeaderBinary() ([]byte, error) {
-	version := varintf.Encode(f.Version)
-	data := make([]byte, TransactionHeadMinLen+len(version))
-	var i int
-	i += copy(data[i:], version)
-
-	// Do the timestamp as 6 bytes in ms
-	ms := f.TimestampSalt.UnixNano() / 1e6
-	buf := bytes.NewBuffer(make([]byte, 0, 8))
-	if err := binary.Write(buf, binary.BigEndian, ms); err != nil {
-		return nil, err
-	}
-	i += copy(data[i:], buf.Bytes()[2:])
-
-	data[i] = uint8(len(f.FCTInputs))
-	i += 1
-	data[i] = uint8(len(f.FCTOutputs))
-	i += 1
-	data[i] = uint8(len(f.ECOutputs))
-	i += 1
-	return data, nil
-}
-
-// MarshalBinary marshals a set of transaction ios to its binary representation.
-// See UnmarshalBinary for encoding details.
-func (ios factoidTransactionIOs) MarshalBinary() ([]byte, error) {
-	var data []byte
-	for _, io := range ios {
-		iodata, err := io.MarshalBinary()
-		if err != nil {
-			return nil, err
-		}
-		data = append(data, iodata...)
-	}
-	return data, nil
-}
-
-// MarshalBinary marshals a transaction io to its binary representation.
-// See UnmarshalBinary for encoding details.
-func (io *FactoidTransactionIO) MarshalBinary() ([]byte, error) {
-	amount := varintf.Encode(io.Amount)
-	data := make([]byte, 32+len(amount))
-	var i int
-	i += copy(data[i:], amount)
-	i += copy(data[i:], io.Address[:])
-	return data, nil
-}
-
-// MarshalBinary marshals a transaction signature to its binary representation.
-// See UnmarshalBinary for encoding details.
-func (s *FactoidTransactionSignature) MarshalBinary() ([]byte, error) {
-	if !s.IsPopulated() {
-		return nil, fmt.Errorf("not populated")
-	}
-
-	rcdData, err := s.ReedeemCondition.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	data := make([]byte, len(rcdData)+len(s.SignatureBlock))
-	var i int
-	i += copy(data[i:], rcdData)
-	i += copy(data[i:], s.SignatureBlock)
-	return data, nil
-}
-
-const (
-	TransactionHeadMinLen = 0 + // Version length is varint
-		6 + // timestamp
-		1 + // input count
-		1 + // factoid output count
-		1 // EC output count
-
-	TransactionTotalMinLen = TransactionHeadMinLen // Coinbases have no body
-
-)
-
-// Decode will consume as many bytes as necessary to unmarshal the factoid
-// transaction. It will return the number of bytes read and an error.
-func (f *FactoidTransaction) Decode(data []byte) (i int, err error) {
-	if len(data) < TransactionTotalMinLen {
-		return 0, fmt.Errorf("insufficient length")
-	}
-
-	// Decode header
-	version, i := varintf.Decode(data)
-	if i < 0 {
-		return 0, fmt.Errorf("version bytes invalid")
-	}
-	f.Version = version
-
-	msdata := make([]byte, 8)
-	// TS + counts length check
-	if len(data) < i+(6+3) {
-		return 0, fmt.Errorf("not enough bytes to decode tx")
-	}
-	copy(msdata[2:], data[i:i+6])
-	ms := binary.BigEndian.Uint64(msdata)
-	f.TimestampSalt = time.Unix(0, int64(ms)*1e6)
+	putInt48BE(data[i:], tx.TimestampSalt.Unix()*1e3)
 	i += 6
-	inputCount := uint8(data[i])
-	i += 1
-	fctOutputCount := uint8(data[i])
-	i += 1
-	ecOutputCount := uint8(data[i])
-	i += 1
 
-	// Decode the body
+	data[i] = byte(len(tx.FCTInputs))
+	i++
+	data[i] = byte(len(tx.FCTOutputs))
+	i++
+	data[i] = byte(len(tx.ECOutputs))
+	i++
 
-	// Decode the inputs
-	f.FCTInputs = make([]FactoidTransactionIO, inputCount)
-	read, err := factoidTransactionIOs(f.FCTInputs).Decode(data[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += read
-
-	// Decode the FCT Outputs
-	f.FCTOutputs = make([]FactoidTransactionIO, fctOutputCount)
-	read, err = factoidTransactionIOs(f.FCTOutputs).Decode(data[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += read
-
-	// Decode the EC Outputs
-	f.ECOutputs = make([]FactoidTransactionIO, ecOutputCount)
-	read, err = factoidTransactionIOs(f.ECOutputs).Decode(data[i:])
-	if err != nil {
-		return 0, err
-	}
-	i += read
-
-	// All data minus the signatures is the needed binary data to compute
-	// the txid
-	ledgerData := data[:i]
-
-	// Decode the signature blocks, one per input
-	f.Signatures = make([]FactoidTransactionSignature, len(f.FCTInputs))
-	for c := uint8(0); c < uint8(len(f.FCTInputs)); c++ {
-		// f.Signatures[i] = new(FactoidTransactionSignature)
-		read, err := f.Signatures[c].Decode(data[i:])
-		if err != nil {
-			return 0, err
-		}
-		i += read
-	}
-
-	txid, err := f.computeTransactionID(ledgerData)
-	if err != nil {
-		return 0, err
-	}
-
-	// If the txid is already set, validate the txid
-	if f.TransactionID != nil {
-		if *f.TransactionID != txid {
-			return 0, fmt.Errorf("invalid txid")
+	for _, adrs := range [][]AddressAmount{
+		tx.FCTInputs,
+		tx.FCTOutputs, tx.ECOutputs,
+	} {
+		for _, adr := range adrs {
+			size := varintf.BufLen(adr.Amount)
+			varintf.Put(data[i:i+size], adr.Amount)
+			i += size
+			i += copy(data[i:], adr.Address)
 		}
 	}
 
-	f.TransactionID = &txid
-
-	return i, err
+	return data[:i], nil
 }
 
-// UnmarshalBinary unmarshals the data into a factoid transaction.
-func (f *FactoidTransaction) UnmarshalBinary(data []byte) error {
-	// TODO: Some length checks to prevent too few/too many bytes
-	_, err := f.Decode(data)
-	return err
+// MarshalBinary marshals the Transaction into its binary form. If the
+// Transaction was orignally Unmarshaled, then the cached data is re-used, so
+// this is efficient. See ClearMarshalBinaryCache.
+//
+// This assumes that the Transaction has all signatures in place already. See
+// Transaction.Sign for signing transactions.
+func (tx Transaction) MarshalBinary() ([]byte, error) {
+	if tx.marshalBinaryCache != nil {
+		return tx.marshalBinaryCache, nil
+	}
+
+	data, err := tx.MarshalBinaryLedger()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, rcdSig := range tx.Signatures {
+		data = append(data, rcdSig.RCD...)
+		data = append(data, rcdSig.Signature...)
+	}
+
+	return data, nil
 }
 
-// Decode takes a given input and decodes the set of bytes needed to populate
-// the set of factoid transactions ios. The set length should be preset before
-// calling this function. It will return how many bytes it read and return an error.
-func (ios factoidTransactionIOs) Decode(data []byte) (int, error) {
-	var i int
-	for c := range ios {
-		read, err := ios[c].Decode(data[i:])
-		if err != nil {
-			return 0, err
+// Sign populates the Signatures of the tx with the given signingSet, which
+// must correspond to the tx.FCTInputs. The complete binary marshaled
+// Transaction is returned.
+func (tx *Transaction) Sign(signingSet ...RCDSigner) ([]byte, error) {
+	if len(signingSet) != len(tx.FCTInputs) {
+		return nil, fmt.Errorf("signingSet size not equal to FCTInputs")
+	}
+
+	ledger, err := tx.MarshalBinaryLedger()
+	if err != nil {
+		return nil, err
+	}
+
+	tx.Signatures = make([]RCDSignature, len(tx.FCTInputs))
+	data := ledger
+	for i, rcdSigner := range signingSet {
+		rcdSig := &tx.Signatures[i]
+		rcdSig.RCD = rcdSigner.RCD()
+		rcdSig.Signature = rcdSigner.Sign(ledger)
+		hash := rcdSig.RCD.Hash()
+		if bytes.Compare(tx.FCTInputs[i].Address, hash[:]) != 0 {
+			return nil, fmt.Errorf("invalid RCD for FCTInput")
 		}
 
-		i += read
+		data = append(data, rcdSig.RCD...)
+		data = append(data, rcdSig.Signature...)
 	}
 
-	return i, nil
+	txID := Bytes32(sha256.Sum256(ledger))
+	tx.ID = &txID
+
+	tx.marshalBinaryCache = data
+
+	return data, nil
 }
 
-// Decode takes a given input and decodes the set of bytes needed for a full
-// transaction input/output. It will return how many bytes it read and an error.
-// A FactoidTransactionIO includes an amount and an address.
-func (io *FactoidTransactionIO) Decode(data []byte) (int, error) {
-	amount, i := varintf.Decode(data)
-	if i < 0 {
-		return 0, fmt.Errorf("amount is not a valid varint")
-	}
-	io.Amount = amount
-
-	if len(data)-i < 32 {
-		return 0, fmt.Errorf("not enough bytes to decode factoidtx")
-	}
-	var tmp Bytes32 // TODO: Fix this
-	copy(tmp[:], data[i:i+32])
-	io.Address = tmp
-	i += 32
-
-	return i, nil
-}
-
-// Decode will take a given input and decode the set of bytes needed for the full
-// FactoidTransactionSignature. It will return how many bytes it read and an error.
-// A FactoidTransactionSignature includes the RCD type and it's signature block.
-func (s *FactoidTransactionSignature) Decode(data []byte) (int, error) {
-	rcd, i, err := DecodeRCD(data)
-	if err != nil {
-		return 0, err
+// MarshalBinaryLen efficiently calculates the full Transaction size. The
+// cached binary marshal data is used if populated.
+func (tx Transaction) MarshalBinaryLen() int {
+	if tx.marshalBinaryCache != nil {
+		return len(tx.marshalBinaryCache)
 	}
 
-	// TODO: How do you want to handle this? Have the decode only return the
-	// 	concrete rcd1 type?
-	rcd1, ok := rcd.(*RCD1)
-	if !ok {
-		return -1, fmt.Errorf("rcd %d type not supported", rcd.Type())
+	size := TransactionHeaderSize +
+		(len(tx.FCTInputs)+len(tx.FCTOutputs)+len(tx.ECOutputs))*32
+
+	for _, adrs := range [][]AddressAmount{
+		tx.FCTInputs,
+		tx.FCTOutputs, tx.ECOutputs,
+	} {
+		for _, adr := range adrs {
+			size += varintf.BufLen(adr.Amount)
+		}
 	}
-	s.ReedeemCondition = *rcd1
 
-	s.SignatureBlock = make([]byte, rcd.SignatureBlockSize())
-	i += copy(s.SignatureBlock, data[i:])
+	for _, rcdSig := range tx.Signatures {
+		size += rcdSig.Len()
+	}
 
-	return i, nil
+	return size
 }

@@ -78,14 +78,15 @@ func Validate(e factom.Entry, expected map[factom.Bytes32]struct{},
 		start := maxRcdSigIDSaltStrLen - len(rcdSigIDSalt)
 		copy(msg[start:], rcdSigIDSalt)
 
-		rcd := rcdSigs[i]
+		rcd := factom.RCD(rcdSigs[i])
 		sig := rcdSigs[i+1]
 		msgHash := sha512.Sum512(msg[start:])
 
-		rcdHash, err := factom.ValidateRCD(rcd, sig, msgHash[:], whitelist...)
-		if err != nil {
+		if err := rcd.Validate(sig, msgHash[:], whitelist...); err != nil {
 			return fmt.Errorf("ExtIDs[%v]: %w", i+1, err)
 		}
+
+		rcdHash := rcd.Hash()
 		if _, ok := expected[rcdHash]; !ok {
 			return fmt.Errorf(
 				"ExtIDs[%v]: unexpected or duplicate RCD Hash", i+1)

@@ -28,11 +28,12 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
+	"time"
 
 	"github.com/Factom-Asset-Tokens/factom/varintf"
 )
 
-// FBlock represents a Factom Factoid Block
+// FBlock represents a Factoid Block.
 type FBlock struct {
 	// Computed Fields
 	KeyMR       *Bytes32
@@ -43,27 +44,43 @@ type FBlock struct {
 	PrevKeyMR       *Bytes32
 	PrevLedgerKeyMR *Bytes32
 
-	ExchangeRate uint64
-	Height       uint32
+	ECExchangeRate uint64
+	Height         uint32
 
-	// ExpansionBytes is the expansion space in the fblock. If we do not
-	// understand the expansion, we just store the raw bytes
-	ExpansionBytes Bytes
+	// Expansion is the expansion space in the FBlock. If we do not parse
+	// the expansion, we just store the raw bytes.
+	Expansion Bytes
 
 	// Number of bytes contained in the body
 	bodySize uint32
 
 	// Body Fields
-	Transactions []FactoidTransaction
+	Transactions []Transaction
+
+	// Timestamp is established by the DBlock. It is only populated if the
+	// FBlock was unmarshaled from within a DBlock.
+	Timestamp time.Time
 
 	// Other fields
 	//
-	// End of Minute transaction heights.  The mark the height of the first
-	// tx index of the NEXT period.  This tx may not exist.  The Coinbase
-	// transaction is considered to be in the first period.  Factom's
-	// periods will initially be a minute long, and there will be
-	// 10 of them.  This may change in the future.
+	// End of Minute transaction heights. They mark the height of the first
+	// tx index of the NEXT period. This tx may not exist. The Coinbase
+	// transaction is considered to be in the first period. Factom's
+	// periods will initially be a minute long, and there will be 10 of
+	// them. This may change in the future.
 	endOfPeriod [10]int
+
+	// marshalBinaryCache is the binary data of the FBlock. It is cached by
+	// UnmarshalBinary so it can be re-used by MarshalBinary.
+	marshalBinaryCache []byte
+}
+
+// ClearMarshalBinaryCache discards the cached MarshalBinary data.
+//
+// Subsequent calls to MarshalBinary will re-construct the data from the fields
+// of the FBlock.
+func (fb *FBlock) ClearMarshalBinaryCache() {
+	fb.marshalBinaryCache = nil
 }
 
 // IsPopulated returns true if fb has already been successfully populated by a
@@ -110,23 +127,22 @@ func (fb *FBlock) Get(ctx context.Context, c *Client) (err error) {
 }
 
 const (
-	FBlockMinHeaderLen = 32 + // Factoid ChainID
+	//FBlockMinHeaderSize is the minimum expected FBlock Header Size.
+	FBlockMinHeaderSize = 32 + // Factoid ChainID
 		32 + // BodyMR
 		32 + // PrevKeyMR
 		32 + // PrevLedgerKeyMR
 		8 + // EC Exchange Rate
 		4 + // DB Height
-		0 + // Header Expansion size (varint)
+		1 + // Header Expansion size (varint)
 		0 + // Header Expansion Area (Min 0)
 		4 + // Transaction Count
 		4 // Body Size
-
-	FBlockMinTotalLen = FBlockMinHeaderLen
 )
 
 const (
-	// Minute markers indicate at which minute in the block the
-	// factoid transactions were processed.
+	// FBlockMinuteMarker is the byte used to indicate the end of a minute
+	// in the FBlock.
 	FBlockMinuteMarker = 0x00
 )
 
@@ -151,12 +167,11 @@ const (
 //
 // https://github.com/FactomProject/FactomDocs/blob/master/factomDataStructureDetails.md#factoid-block
 func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
-	if len(data) < FBlockMinTotalLen {
+	if len(data) < FBlockMinHeaderSize {
 		return fmt.Errorf("insufficient length")
 	}
 
-	expFChain := FBlockChainID()
-	if bytes.Compare(data[:32], expFChain[:]) != 0 {
+	if bytes.Compare(data[:32], fBlockChainID[:]) != 0 {
 		return fmt.Errorf("invalid factoid chainid")
 	}
 
@@ -171,7 +186,7 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 	fb.PrevLedgerKeyMR = new(Bytes32)
 	i += copy(fb.PrevLedgerKeyMR[:], data[i:])
 
-	fb.ExchangeRate = binary.BigEndian.Uint64(data[i : i+8])
+	fb.ECExchangeRate = binary.BigEndian.Uint64(data[i : i+8])
 	i += 8
 
 	fb.Height = binary.BigEndian.Uint32(data[i : i+4])
@@ -184,44 +199,28 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 	i += read
 
 	// sanity check, if the expansion size is greater than all the data we
-	// have, then the expansion size was bogus.
-	if expansionSize > uint64(len(data)) {
-		return fmt.Errorf("expansion size is too large at %d bytes, "+
-			"when only %d bytes exist", expansionSize, len(data))
+	// have, less 8 bytes for the tx count and body size, then the
+	// expansion size was bogus.
+	if expansionSize > uint64(len(data[i:])-8) {
+		return fmt.Errorf("expansion size is larger than remaining data")
 	}
-
 	// This should be a safe cast to int, as the size is never > max int
 	// For these type assertions to fail on a 32 bit system, we would need a
 	// 4gb factoid block.
-	fb.ExpansionBytes = make([]byte, expansionSize)
-	if uint64(len(data[i:])) < expansionSize {
-		return fmt.Errorf("expansion size is %d, only %d bytes exist", expansionSize, len(data[i:]))
-	}
-	copy(fb.ExpansionBytes, data[i:])
+	fb.Expansion = data[i : i+int(expansionSize)]
 	i += int(expansionSize)
-
-	// Check the next two slice accesses won't be out of bounds
-	if len(data[i:]) < 8 {
-		return fmt.Errorf("ran out of bytes")
-	}
 
 	txCount := binary.BigEndian.Uint32(data[i : i+4])
 	i += 4
 	fb.bodySize = binary.BigEndian.Uint32(data[i : i+4])
 	i += 4
 
-	// Check the txcount is at least somewhat reasonable. This check
-	// is not perfect, given txs are variable in size.
-	if uint64(len(data[i:])) < uint64(txCount)*TransactionTotalMinLen {
-		return fmt.Errorf("not enough bytes")
-	}
-
 	// Header is all data we've read so far
 	headerHash := sha256.Sum256(data[:i])
 	bodyMRElements := make([][]byte, int(txCount)+len(fb.endOfPeriod))
 	bodyLedgerMRElements := make([][]byte, int(txCount)+len(fb.endOfPeriod))
 
-	fb.Transactions = make([]FactoidTransaction, txCount)
+	fb.Transactions = make([]Transaction, txCount)
 	var period int
 	for c := range fb.Transactions {
 		// Before each fct tx, we need to see if there is a marker byte that
@@ -234,20 +233,23 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 			bodyMRElements[c+period] = []byte{FBlockMinuteMarker}
 			bodyLedgerMRElements[c+period] = []byte{FBlockMinuteMarker}
 			period++ // The next period encountered will be the next minute
-			i += 1
+			i++
 		}
 
-		read, err := fb.Transactions[c].Decode(data[i:])
-		if err != nil {
+		tx := &fb.Transactions[c]
+		if err := tx.UnmarshalBinary(data[i:]); err != nil {
 			return err
 		}
+		read := tx.MarshalBinaryLen()
+
+		tx.Timestamp = fb.Timestamp.Add(time.Duration(period) * MinuteDuration)
 
 		// Append the elements for MR calculation
 		bodyMRElements[c+period] = data[i : i+read]
 		// Calc the signature size
 		var sigSize int
 		for _, o := range fb.Transactions[c].Signatures {
-			sigSize += o.ReedeemCondition.Length() + o.ReedeemCondition.SignatureBlockSize()
+			sigSize += len(o.RCD) + len(o.Signature)
 		}
 		bodyLedgerMRElements[c+period] = data[i : i+(read-sigSize)]
 
@@ -266,7 +268,7 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 	for period < len(fb.endOfPeriod) {
 		fb.endOfPeriod[period] = int(txCount)
 		period++ // The next period encountered will be the next minute
-		i += 1
+		i++
 	}
 
 	// Merkle Root Calculations
@@ -290,37 +292,48 @@ func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
 		return err
 	}
 
-	// Already set, check it matches
-	if fb.KeyMR != nil {
-		if keyMr != *fb.KeyMR {
-			return fmt.Errorf("invalid keymr")
-		}
+	if fb.KeyMR == nil {
+		fb.KeyMR = &keyMr
+	} else if keyMr != *fb.KeyMR {
+		return fmt.Errorf("invalid keyMR")
 	}
 
-	fb.KeyMR = &keyMr
 	fb.LedgerKeyMR = &ledgerMr
+	fb.marshalBinaryCache = data
 
 	return nil
 }
 
+// MarshalBinary marshals the FBlock into its binary form. If the FBlock was
+// orignally Unmarshaled, then the cached data is re-used, so this is
+// efficient. See ClearMarshalBinaryCache.
 func (fb *FBlock) MarshalBinary() ([]byte, error) {
+	if fb.marshalBinaryCache != nil {
+		return fb.marshalBinaryCache, nil
+	}
+
+	if !fb.IsPopulated() {
+		return nil, fmt.Errorf("not populated")
+	}
+
 	// Header
-	expansionSize := varintf.Encode(uint64(len(fb.ExpansionBytes)))
-	data := make([]byte, FBlockMinHeaderLen+len(expansionSize)+len(fb.ExpansionBytes)+int(fb.bodySize))
+	expansionSize := varintf.Encode(uint64(len(fb.Expansion)))
+	data := make([]byte, FBlockMinHeaderSize+
+		len(expansionSize)+len(fb.Expansion)+int(fb.bodySize))
+
 	var i int
-	fBlockChain := FBlockChainID()
-	i += copy(data[i:], fBlockChain[:])
+	i += copy(data[i:], fBlockChainID[:])
 	i += copy(data[i:], fb.BodyMR[:])
 	i += copy(data[i:], fb.PrevKeyMR[:])
 	i += copy(data[i:], fb.PrevLedgerKeyMR[:])
 
-	binary.BigEndian.PutUint64(data[i:], fb.ExchangeRate)
+	binary.BigEndian.PutUint64(data[i:], fb.ECExchangeRate)
 	i += 8
 	binary.BigEndian.PutUint32(data[i:], fb.Height)
 	i += 4
 	i += copy(data[i:], expansionSize)
-	// Currently all expansion bytes are stored in the ExpansionBytes.
-	i += copy(data[i:], fb.ExpansionBytes)
+	// Currently all expansion bytes are stored in the Expansion.
+	i += copy(data[i:], fb.Expansion)
 	binary.BigEndian.PutUint32(data[i:], uint32(len(fb.Transactions)))
 	i += 4
 	binary.BigEndian.PutUint32(data[i:], fb.bodySize)
@@ -333,8 +346,8 @@ func (fb *FBlock) MarshalBinary() ([]byte, error) {
 			fb.endOfPeriod[period] > 0 && // If the period markers are actually set (ignore otherwise)
 			c == fb.endOfPeriod[period] { // This TX is the market point
 			data[i] = FBlockMinuteMarker
-			i += 1
 			period++
+			i++
 		}
 
 		tData, err := transaction.MarshalBinary()
@@ -346,13 +359,14 @@ func (fb *FBlock) MarshalBinary() ([]byte, error) {
 
 	for period < len(fb.endOfPeriod) {
 		data[i] = FBlockMinuteMarker
-		i += 1
+		i++
 		period++
 	}
 
 	return data, nil
 }
 
+// ComputeFullHash computes the full hash of the FBlock.
 func (fb FBlock) ComputeFullHash() (Bytes32, error) {
 	data, err := fb.MarshalBinary()
 	if err != nil {

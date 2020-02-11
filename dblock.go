@@ -62,9 +62,23 @@ type DBlock struct {
 	Height       uint32
 	Timestamp    time.Time
 
+	FBlock FBlock
+
 	// DBlock.Get populates EBlocks with their ChainID, KeyMR, Timestamp,
 	// and Height.
 	EBlocks []EBlock
+
+	// marshalBinaryCache is the binary data of the DBlock. It is cached by
+	// UnmarshalBinary so it can be re-used by MarshalBinary.
+	marshalBinaryCache []byte
+}
+
+// ClearMarshalBinaryCache discards the cached MarshalBinary data.
+//
+// Subsequent calls to MarshalBinary will re-construct the data from the fields
+// of the DBlock.
+func (db *DBlock) ClearMarshalBinaryCache() {
+	db.marshalBinaryCache = nil
 }
 
 // IsPopulated returns true if db has already been populated by a successful
@@ -127,8 +141,8 @@ func (db *DBlock) Get(ctx context.Context, c *Client) (err error) {
 	return db.UnmarshalBinary(res.Data)
 }
 
-// DBlockHeaderLen is the exact length of a DBlock header.
-const DBlockHeaderLen = 1 + // [Version byte (0x00)]
+// DBlockHeaderSize is the exact length of a DBlock header.
+const DBlockHeaderSize = 1 + // [Version byte (0x00)]
 	4 + // NetworkID
 	32 + // BodyMR
 	32 + // PrevKeyMR
@@ -137,25 +151,25 @@ const DBlockHeaderLen = 1 + // [Version byte (0x00)]
 	4 + // DB Height
 	4 // EBlock Count
 
-// DBlockEBlockLen is the exact length of an EBlock within a DBlock.
-const DBlockEBlockLen = 32 + // ChainID
+// DBlockEBlockSize is the exact length of an EBlock within a DBlock.
+const DBlockEBlockSize = 32 + // ChainID
 	32 // KeyMR
 
-// DBlockMinBodyLen is the minimum length of the body of a DBlock, which must
+// DBlockMinBodySize is the minimum length of the body of a DBlock, which must
 // include at least an Admin Block, EC Block, and FCT Block.
-const DBlockMinBodyLen = DBlockEBlockLen + // Admin Block
-	DBlockEBlockLen + // EC Block
-	DBlockEBlockLen // FCT Block
+const DBlockMinBodySize = DBlockEBlockSize + // Admin Block
+	DBlockEBlockSize + // EC Block
+	DBlockEBlockSize // FCT Block
 
-// DBlockMaxBodyLen is the maximum length of the body of a DBlock, which is
+// DBlockMaxBodySize is the maximum length of the body of a DBlock, which is
 // determined by the largest EBlock count that can be stored in 4 bytes.
-const DBlockMaxBodyLen = math.MaxUint32 * DBlockEBlockLen
+const DBlockMaxBodySize = math.MaxUint32 * DBlockEBlockSize
 
-// DBlockMinTotalLen is the minumum total length of a DBlock.
-const DBlockMinTotalLen = DBlockHeaderLen + DBlockMinBodyLen
+// DBlockMinTotalSize is the minumum total length of a DBlock.
+const DBlockMinTotalSize = DBlockHeaderSize + DBlockMinBodySize
 
-// DBlockMaxTotalLen is the maximum length of a DBlock.
-const DBlockMaxTotalLen = DBlockHeaderLen + DBlockMaxBodyLen
+// DBlockMaxTotalSize is the maximum length of a DBlock.
+const DBlockMaxTotalSize = DBlockHeaderSize + DBlockMaxBodySize
 
 // UnmarshalBinary unmarshals raw DBlock data, verifies the BodyMR, and
 // populates db.FullHash and db.KeyMR, if nil. If db.KeyMR is populated, it is
@@ -186,8 +200,8 @@ const DBlockMaxTotalLen = DBlockHeaderLen + DBlockMaxBodyLen
 //
 // https://github.com/FactomProject/FactomDocs/blob/master/factomDataStructureDetails.md#directory-block
 func (db *DBlock) UnmarshalBinary(data []byte) error {
-	if uint64(len(data)) < DBlockMinTotalLen ||
-		uint64(len(data)) > DBlockMaxTotalLen {
+	if uint64(len(data)) < DBlockMinTotalSize ||
+		uint64(len(data)) > DBlockMaxTotalSize {
 		return fmt.Errorf("invalid length")
 	}
 
@@ -222,7 +236,7 @@ func (db *DBlock) UnmarshalBinary(data []byte) error {
 	i += 4
 
 	// Ensure we have enough data left to read all of the EBlocks.
-	if len(data[i:]) < eBlockCount*DBlockEBlockLen {
+	if len(data[i:]) < eBlockCount*DBlockEBlockSize {
 		return fmt.Errorf("insufficient length")
 	}
 
@@ -233,8 +247,8 @@ func (db *DBlock) UnmarshalBinary(data []byte) error {
 	var prevChainID *Bytes32
 
 	// Parse the EBlocks.
-	db.EBlocks = make([]EBlock, eBlockCount)
-	for ebi := range db.EBlocks {
+	db.EBlocks = make([]EBlock, eBlockCount-1) // less one for the FBlock
+	for ebi := range elements {
 		// Ensure that ChainIDs are in ascending order.
 		if prevChainID != nil &&
 			bytes.Compare(data[i:i+len(prevChainID)],
@@ -245,15 +259,28 @@ func (db *DBlock) UnmarshalBinary(data []byte) error {
 		elements[ebi] = data[i : i+2*len(Bytes32{})]
 
 		// Populate ChainID, KeyMR, Timestamp, and Height.
-		eb := &db.EBlocks[ebi]
 
-		eb.ChainID = new(Bytes32)
-		i += copy(eb.ChainID[:], data[i:])
-		prevChainID = eb.ChainID
+		var chainID, keyMR Bytes32
+		i += copy(chainID[:], data[i:])
+		prevChainID = &chainID
+		i += copy(keyMR[:], data[i:])
 
-		eb.KeyMR = new(Bytes32)
-		i += copy(eb.KeyMR[:], data[i:])
+		if chainID == fBlockChainID {
+			db.FBlock.KeyMR = &keyMR
+			db.FBlock.Timestamp = db.Timestamp
+			db.FBlock.Height = db.Height
+			continue
+		}
 
+		var offset int
+		if db.FBlock.KeyMR != nil {
+			offset++
+		}
+
+		eb := &db.EBlocks[ebi-offset]
+
+		eb.ChainID = &chainID
+		eb.KeyMR = &keyMR
 		eb.Timestamp = db.Timestamp
 		eb.Height = db.Height
 	}
@@ -284,6 +311,8 @@ func (db *DBlock) UnmarshalBinary(data []byte) error {
 	// Populate FullHash.
 	db.FullHash = new(Bytes32)
 	*db.FullHash = ComputeFullHash(data)
+
+	db.marshalBinaryCache = data
 
 	return nil
 }
@@ -321,11 +350,15 @@ func (db DBlock) MarshalBinary() ([]byte, error) {
 		return nil, fmt.Errorf("not populated")
 	}
 
-	totalLen := db.MarshalBinaryLen()
-	if uint64(totalLen) > DBlockMaxTotalLen {
+	if db.marshalBinaryCache != nil {
+		return db.marshalBinaryCache, nil
+	}
+
+	totalSize := db.MarshalBinaryLen()
+	if uint64(totalSize) > DBlockMaxTotalSize {
 		return nil, fmt.Errorf("too many EBlocks")
 	}
-	data := make([]byte, totalLen)
+	data := make([]byte, totalSize)
 
 	i := 1 // Skip version byte
 	i += copy(data[i:], db.NetworkID[:])
@@ -350,9 +383,9 @@ func (db DBlock) MarshalBinary() ([]byte, error) {
 }
 
 // MarshalBinaryLen returns the length of the binary encoding of db,
-//      DBlockHeaderLen + len(db.EBlocks)*DBlockEBlockLen
+//      DBlockHeaderSize + len(db.EBlocks)*DBlockEBlockSize
 func (db DBlock) MarshalBinaryLen() int {
-	return DBlockHeaderLen + len(db.EBlocks)*DBlockEBlockLen
+	return DBlockHeaderSize + len(db.EBlocks)*DBlockEBlockSize
 }
 
 // EBlock efficiently finds and returns the *EBlock in db.EBlocks for the given

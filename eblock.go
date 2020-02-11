@@ -54,7 +54,17 @@ type EBlock struct {
 	// EBlock.Get populates the Entries with their Hash and Timestamp.
 	Entries []Entry
 
-	data Bytes
+	// marshalBinaryCache is the binary data of the EBlock. It is cached by
+	// UnmarshalBinary so it can be re-used by MarshalBinary.
+	marshalBinaryCache []byte
+}
+
+// ClearMarshalBinaryCache discards the cached MarshalBinary data.
+//
+// Subsequent calls to MarshalBinary will re-construct the data from the fields
+// of the EBlock.
+func (eb *EBlock) ClearMarshalBinaryCache() {
+	eb.marshalBinaryCache = nil
 }
 
 // IsPopulated returns true if eb has already been populated by a successful
@@ -315,8 +325,8 @@ func (eb *EBlock) GetFirst(ctx context.Context, c *Client) error {
 	return nil
 }
 
-// EBlockHeaderLen is the exact length of an EBlock header.
-const EBlockHeaderLen = 32 + // [ChainID (Bytes32)] +
+// EBlockHeaderSize is the exact length of an EBlock header.
+const EBlockHeaderSize = 32 + // [ChainID (Bytes32)] +
 	32 + // [BodyMR (Bytes32)] +
 	32 + // [PrevKeyMR (Bytes32)] +
 	32 + // [PrevFullHash (Bytes32)] +
@@ -324,23 +334,23 @@ const EBlockHeaderLen = 32 + // [ChainID (Bytes32)] +
 	4 + // [DB Height (uint32 BE)] +
 	4 // [Entry Count (uint32 BE)]
 
-// EBlockObjectLen is the length of an EBlock body object, which may be an
+// EBlockObjectSize is the length of an EBlock body object, which may be an
 // Entry hash or minute marker.
-const EBlockObjectLen = 32
+const EBlockObjectSize = 32
 
-// EBlockMinBodyLen is the minimum length of the body of an EBlock, which must
+// EBlockMinBodySize is the minimum length of the body of an EBlock, which must
 // include at least on Entry hash and one minute marker.
-const EBlockMinBodyLen = EBlockObjectLen * 2
+const EBlockMinBodySize = EBlockObjectSize * 2
 
-// EBlockMaxBodyLen is the maximum length of the body of an EBlock, which is
+// EBlockMaxBodySize is the maximum length of the body of an EBlock, which is
 // determined by the largest ObjectCount that can be stored in 4 bytes.
-const EBlockMaxBodyLen = math.MaxUint32 * EBlockObjectLen
+const EBlockMaxBodySize = math.MaxUint32 * EBlockObjectSize
 
-// EBlockMinTotalLen is the minimum total length of an EBlock.
-const EBlockMinTotalLen = EBlockHeaderLen + EBlockMinBodyLen
+// EBlockMinTotalSize is the minimum total length of an EBlock.
+const EBlockMinTotalSize = EBlockHeaderSize + EBlockMinBodySize
 
-// EBlockMaxTotalLen is the maximum total length of an EBlock.
-const EBlockMaxTotalLen = EBlockHeaderLen + EBlockMaxBodyLen
+// EBlockMaxTotalSize is the maximum total length of an EBlock.
+const EBlockMaxTotalSize = EBlockHeaderSize + EBlockMaxBodySize
 
 // min10Marker is frequently reused for comparison in UnmarshalBinary.
 var min10Marker = Bytes32{31: 10}
@@ -365,8 +375,8 @@ var min10Marker = Bytes32{31: 10}
 //
 // https://github.com/FactomProject/FactomDocs/blob/master/factomDataStructureDetails.md#entry-block
 func (eb *EBlock) UnmarshalBinary(data []byte) error {
-	if uint64(len(data)) < EBlockMinTotalLen ||
-		uint64(len(data)) > EBlockMaxTotalLen {
+	if uint64(len(data)) < EBlockMinTotalSize ||
+		uint64(len(data)) > EBlockMaxTotalSize {
 		return fmt.Errorf("invalid length")
 	}
 
@@ -438,7 +448,7 @@ func (eb *EBlock) UnmarshalBinary(data []byte) error {
 		}
 
 		// Set ts to the eb.Timestamp + the minute offset.
-		ts := eb.Timestamp.Add(time.Duration(min+1) * time.Minute)
+		ts := eb.Timestamp.Add(time.Duration(min+1) * MinuteDuration)
 
 		// Populate EBlocks up to this minute marker.
 		for ; oi < markerID; oi++ {
@@ -483,7 +493,7 @@ func (eb *EBlock) UnmarshalBinary(data []byte) error {
 	eb.FullHash = new(Bytes32)
 	*eb.FullHash = ComputeFullHash(data)
 
-	eb.data = data
+	eb.marshalBinaryCache = data
 
 	return nil
 }
@@ -506,9 +516,11 @@ func (eb *EBlock) UnmarshalBinary(data []byte) error {
 //      [Object N (Bytes32)]
 //
 // https://github.com/FactomProject/FactomDocs/blob/master/factomDataStructureDetails.md#entry-block
+//
+// If EBlock was populated by a call to MarshalBinary, and ClearMar
 func (eb EBlock) MarshalBinary() ([]byte, error) {
-	if eb.data != nil {
-		return eb.data, nil
+	if eb.marshalBinaryCache != nil {
+		return eb.marshalBinaryCache, nil
 	}
 
 	if !eb.IsPopulated() {
@@ -552,9 +564,9 @@ func (eb EBlock) MarshalBinary() ([]byte, error) {
 }
 
 // MarshalBinaryLen returns the length of the binary encoding of eb,
-//      EBlockHeaderLen + len(eb.ObjectCount)*len(Bytes32{})
+//      EBlockHeaderSize + len(eb.ObjectCount)*len(Bytes32{})
 func (eb EBlock) MarshalBinaryLen() int {
-	return EBlockHeaderLen + int(eb.ObjectCount)*len(Bytes32{})
+	return EBlockHeaderSize + int(eb.ObjectCount)*len(Bytes32{})
 }
 
 // SetTimestamp sets the EBlock timestamp and updates all Entry Timestamps

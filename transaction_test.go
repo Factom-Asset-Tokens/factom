@@ -33,67 +33,55 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TODO: This function can be removed when FactoidIO takes an rcd1 vs the interface. Currently
-// 		the test requires the interface, so this is the workout until that change.
-func NewRCD1FromString(s string) *RCD1 {
-	r := RCD1(NewBytes32("10560cc304eb0a3b0540bc387930d2a7b2373270cfbd8448bc68a867cefb9f74"))
-	return &r
-}
-
 var txMarshalBinaryTests = []struct {
 	Name     string
 	TxID     Bytes32
 	FullHash Bytes32
-	FactoidTransaction
+	Transaction
 }{{
 	Name:     "valid",
 	TxID:     NewBytes32("c7ea8854be1456ed8588b33d8d3cc2d90b911fcb01ec902ca3202e8bdbf269bf"),
 	FullHash: NewBytes32("64251aa63e011f803c883acf2342d784b405afa59e24d9c5506c84f6c91bf18b"),
-	FactoidTransaction: FactoidTransaction{
-		FactoidTransactionHeader: FactoidTransactionHeader{
-			TransactionID: nil,
-			Version:       2,
-			TimestampSalt: time.Unix(0, 1443537161594*1e6),
-			// Keep the count info, hard to decode with your eyes...
-			// InputCount:     1,
-			// FCTOutputCount: 1,
-			// ECOutputCount:  0,
-		},
-		FCTInputs: []FactoidTransactionIO{
+	Transaction: Transaction{
+		ID:            nil,
+		TimestampSalt: time.Unix(0, 1443537161594*1e6),
+		// Keep the count info, hard to decode with your eyes...
+		// InputCount:     1,
+		// FCTOutputCount: 1,
+		// ECOutputCount:  0,
+		FCTInputs: []AddressAmount{
 			{
 				Amount:  1000000000,
-				Address: NewBytes32("ab87d1b89117aba0e6b131d1ee42f99c6e806b76ca68c0823fb65c80d694b125"),
+				Address: NewBytes("ab87d1b89117aba0e6b131d1ee42f99c6e806b76ca68c0823fb65c80d694b125"),
 			},
 		},
-		FCTOutputs: []FactoidTransactionIO{
+		FCTOutputs: []AddressAmount{
 			{
 				Amount:  992000800,
-				Address: NewBytes32("648f374d3de5d1541642c167a34d0f7b7d92fd2dab4d32f313776fa5a2b73a98"),
+				Address: NewBytes("648f374d3de5d1541642c167a34d0f7b7d92fd2dab4d32f313776fa5a2b73a98"),
 			},
 		},
 		ECOutputs: nil,
-		Signatures: []FactoidTransactionSignature{
+		Signatures: []RCDSignature{
 			{
 				// RCD 0110560cc304eb0a3b0540bc387930d2a7b2373270cfbd8448bc68a867cefb9f74
-				ReedeemCondition: *NewRCD1FromString("10560cc304eb0a3b0540bc387930d2a7b2373270cfbd8448bc68a867cefb9f74"),
-				SignatureBlock:   NewBytes("d68d5ce3bee5e69f113d643df1f6ba0dd476ada40633751537d5b840e2be811d4734ef9f679966fa86b1777c8a387986b4e21987174f9df808c2081be2c04a08"),
+				RCD:       RCD(NewBytes("0110560cc304eb0a3b0540bc387930d2a7b2373270cfbd8448bc68a867cefb9f74")),
+				Signature: NewBytes("d68d5ce3bee5e69f113d643df1f6ba0dd476ada40633751537d5b840e2be811d4734ef9f679966fa86b1777c8a387986b4e21987174f9df808c2081be2c04a08"),
 			},
 		},
 	},
 }}
 
-func TestFactoidTransactionMarshalBinary(t *testing.T) {
+func TestTransactionMarshalBinary(t *testing.T) {
 	for _, test := range txMarshalBinaryTests {
 		t.Run(test.Name, func(t *testing.T) {
-			f := test.FactoidTransaction
-			txid, err := f.ComputeTransactionID()
-			f.TransactionID = &txid
-			assert := assert.New(t)
-			assert.NoError(err)
-			assert.Equal(*f.TransactionID, txid)
-			fh, err := f.ComputeFullHash()
-			assert.NoError(err)
-			assert.Equal(*fh, test.FullHash)
+			require := require.New(t)
+			data, err := test.Transaction.MarshalBinary()
+			require.NoError(err)
+
+			var tx Transaction
+			require.NoError(tx.UnmarshalBinary(data), Bytes(data))
+			require.Equal(test.Transaction, tx)
 		})
 	}
 }
@@ -168,34 +156,28 @@ var txUnmarshalBinaryTests = []struct {
 			"aa7d9e8a7464aa272192e499bb0cdc720288884bfd5546bab8dcb8892527fc7b"),
 		FullHash: NewBytes32(
 			"59b293f8ade00f7f51d42762b864e287ea31d195563e1970356fe8c1d49fce97"),
-		Error: "invalid txid",
+		Error: "invalid TxID",
 	},
 }
 
-func TestFactoidTransaction_UnmarshalBinary(t *testing.T) {
+func TestTransaction_UnmarshalBinary(t *testing.T) {
 	for _, test := range txUnmarshalBinaryTests {
 		t.Run("UnmarshalBinary/"+test.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
-			f := FactoidTransaction{}
+			var tx Transaction
 			if !test.TxID.IsZero() {
-				f.TransactionID = &test.TxID
+				tx.ID = &test.TxID
 			}
 
-			read, err := f.Decode(test.Data)
+			err := tx.UnmarshalBinary(test.Data)
 			if len(test.Error) == 0 {
 				require.NoError(err)
-				require.NotNil(f.FCTInputs)
-				hash, err := f.ComputeFullHash()
-				assert.NoError(err)
+				require.NotNil(tx.FCTInputs)
 				if !test.TxID.IsZero() {
-					assert.Equal(test.TxID[:], f.TransactionID[:])
+					assert.Equal(test.TxID[:], tx.ID[:])
 				}
-				if !test.FullHash.IsZero() {
-					assert.Equal(test.FullHash[:], hash[:])
-				}
-				assert.Equal(read, len(test.Data))
-				assert.Equal(test.Valid, f.Valid())
+				assert.Equal(tx.MarshalBinaryLen(), len(test.Data))
 			} else {
 				require.EqualError(err, test.Error)
 			}
@@ -208,43 +190,18 @@ func TestFactoidTransaction_UnmarshalBinary(t *testing.T) {
 			d := make([]byte, rand.Intn(1000))
 			rand.Read(d)
 
-			f := FactoidTransaction{}
-			err := f.UnmarshalBinary(d)
+			var tx Transaction
+			err := tx.UnmarshalBinary(d)
 			if err == nil {
 				t.Errorf("expected an error")
 			}
 		}
 	})
-
-	t.Run("UnmarshalBinary/TransactionIO", func(t *testing.T) {
-		// Test incorrect data
-		data := make([]byte, 32) // 1 byte short
-		var io FactoidTransactionIO
-		_, err := io.Decode(data)
-		if err == nil || err.Error() != "not enough bytes to decode factoidtx" {
-			t.Errorf("error not as expected")
-		}
-
-		// Not enough bytes
-		data = make([]byte, 15)
-		_, err = io.Decode(data)
-		if err == nil || err.Error() != "not enough bytes to decode factoidtx" {
-			t.Errorf("error not as expected")
-		}
-
-		// Empty bytes
-		data = make([]byte, 0) // 0 bytes
-		_, err = io.Decode(data)
-		if err == nil || err.Error() != "amount is not a valid varint" {
-			t.Errorf("error not as expected")
-		}
-
-	})
 }
 
-func TestFactoidTransaction_IsPopulated(t *testing.T) {
-	f := FactoidTransaction{}
-	if f.IsPopulated() {
+func TestTransaction_IsPopulated(t *testing.T) {
+	var tx Transaction
+	if tx.IsPopulated() {
 		t.Errorf("Should not be populated")
 	}
 }

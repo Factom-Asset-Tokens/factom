@@ -77,14 +77,16 @@ func TestDecodeRCD(t *testing.T) {
 		t.Run("UnmarshalBinary/"+test.Name, func(t *testing.T) {
 			assert := assert.New(t)
 			require := require.New(t)
-			rcd, r, err := DecodeRCD(test.Data)
+			var rcd RCD
+			err := rcd.UnmarshalBinary(test.Data)
+			r := len(rcd)
 			if len(test.Error) == 0 {
 				require.NoError(err)
 				require.Equal(r, len(test.Data))
 				require.NotNil(rcd)
 
 				assert.Equal(rcd.Type(), test.RCDType)
-				addr := rcd.Address()
+				addr := rcd.Hash()
 				assert.Equal(addr[:], test.Address[:])
 			} else {
 				require.EqualError(err, test.Error)
@@ -98,12 +100,14 @@ func TestDecodeRCD(t *testing.T) {
 			d := make([]byte, rand.Intn(500))
 			rand.Read(d)
 
-			rcd, read, err := DecodeRCD(d)
+			var rcd RCD
+			err := rcd.UnmarshalBinary(d)
+			r := len(rcd)
 			if err == nil {
 				// The RCD 1 type is pretty easy to be randomly valid.
 				// So if it is type one and we read the right number of bytes,
 				// there is no expected error.
-				if read != 33 && rcd.Type() != 1 && d[0] == 0x01 {
+				if r != 33 && rcd.Type() != 1 && d[0] == 0x01 {
 					t.Errorf("expected an error")
 				}
 			}

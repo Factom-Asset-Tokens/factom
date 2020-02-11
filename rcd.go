@@ -1,124 +1,170 @@
+// MIT License
+//
+// Copyright 2018 Canonical Ledgers, LLC
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+// IN THE SOFTWARE.
+
 package factom
 
 import (
 	"crypto/ed25519"
-	"encoding"
+	"crypto/sha256"
 	"fmt"
-
-	"github.com/Factom-Asset-Tokens/factom/varintf"
 )
 
-// RCD is the underlying structure behind a factoid address. A factoid address
-// is a sha256d(RCD). The most common and basic RCD type, is type 1. That
-// being just a single public key that uses a single 64 byte signature block.
-type RCD interface {
-	// Type is varint encoded, but typically only uses 1 byte
-	Type() uint64
+// RCDType is the magic number that represents the RCD type. Currently this
+// only takes up one byte but techincally it is a varintf. Down the road the
+// underlying type may change to allow for longer IDs for RCD Types.
+type RCDType byte
 
-	// SignatureBlockSize returns the expected size of the signature block
-	// for a given RCD. This is not a constant for all RCD types.
-	SignatureBlockSize() int
-
-	// Address returns the sha256(rcd) that is the factoid address
-	Address() FAAddress
-
-	Validate(msg Bytes, signature Bytes) bool
-
-	// For Marshalling
-	encoding.BinaryMarshaler
-	encoding.BinaryUnmarshaler
-}
-
-// DecodeRCD will decode any given data into it's respective RCD
-// type. It will return the RCD, the number of bytes read, and an error.
-// The details underlying format of the data can be seen on the UnmarshalBinary
-// functions of the RCD types.
-func DecodeRCD(data []byte) (reedemCondition RCD, read int, err error) {
-	// Min 1 bytes for a varint of 1 byte
-	if len(data) < 1 {
-		return nil, 0, fmt.Errorf("insufficient length")
-	}
-
-	version, r := varintf.Decode(data)
-	if r < 0 {
-		return nil, 0, fmt.Errorf("invalid varint")
-	}
-	switch version {
-	case 1:
-		rcd := new(RCD1)
-		if len(data) < RCDType1Len {
-			return nil, 0, fmt.Errorf("insufficient length")
-		}
-		if err := rcd.UnmarshalBinary(data[:RCDType1Len]); err != nil {
-			return nil, 0, err
-		}
-		return rcd, RCDType1Len, nil
-	default:
-		return nil, 0, fmt.Errorf("rcd version %d unsupported", version)
-	}
-}
-
-// RCD1 is the simple rcd of a factoid address with a single public key.
-// RCD1 contains the type and a single 32 byte ed25519 public key
-type RCD1 [ed25519.PublicKeySize]byte
-
-func (r RCD1) Type() uint64 {
-	return 1
-}
-
-func (r RCD1) SignatureBlockSize() int {
-	return ed25519.SignatureSize // 64 byte ed25519 sig
-}
-
-func (r RCD1) Address() FAAddress {
-	addr := sha256d(r.RCD())
-
-	return FAAddress(addr)
-}
-
-func (r RCD1) Validate(msg Bytes, signature Bytes) bool {
-	return ed25519.Verify(r[:], msg, signature)
-}
-
-func (r RCD1) RCD() []byte {
-	data, _ := r.MarshalBinary()
-	return data
-}
-
-func (r RCD1) Length() int {
-	return RCDType1Len
-}
-
-// MarshalBinary marshals the rcd type to its binary representation. See
-// UnmarshalBinary for encoding details.
-func (r RCD1) MarshalBinary() ([]byte, error) {
-	data := make([]byte, RCDType1Len)
-	data[0] = 1
-	i := 1
-	i += copy(data[i:], r[:])
-	return data, nil
+// String returns "RCDTypeXX".
+func (r RCDType) String() string {
+	return fmt.Sprintf("RCDType%02x", byte(r))
 }
 
 const (
-	RCDType1Len = 1 + // [Version byte (0x01)]
-		32 // Public key
-
+	// RCDType01 is the magic number identifying the RCD type that requires
+	// an ed25519 signature from the given public key.
+	RCDType01 RCDType = 0x01
+	// RCDType01Size is the total size of the RCD.
+	RCDType01Size = 1 + ed25519.PublicKeySize
+	// RCDType01SigSize is the size of the expected ed25519 signature.
+	RCDType01SigSize = ed25519.SignatureSize
 )
 
-// UnmarshalBinary unmarshals the raw rcd type data to the RCD1 struct.
+// RCDSigner is the interface implemented by types that can generate Redeem
+// Condition Datastructures and the corresponding signatures to validate them.
+type RCDSigner interface {
+	// RCD constructs the RCD.
+	RCD() RCD
+
+	// Sign the msg.
+	Sign(msg []byte) []byte
+}
+
+// RCD is a Redeem Condition Datastructure. It is just a byte slice with
+// special meaning.
+type RCD []byte
+
+// String returns a hex encoded string of the RCD.
+func (rcd RCD) String() string {
+	return Bytes(rcd).String()
+}
+
+// Type returns the first byte of rcd as an RCDType.
 //
-// [Version byte (0x01)] +
-// [ed25519 pubkey (32 bytes)] +
-func (r *RCD1) UnmarshalBinary(data []byte) error {
-	if len(data) != RCDType1Len {
-		return fmt.Errorf("incorrect number of bytes")
+// This will panic of len(rcd) < 1.
+func (rcd RCD) Type() RCDType {
+	return RCDType(rcd[0])
+}
+
+// SignatureBlockSize returns the expected size of the signature block this RCD
+// requires.
+func (rcd RCD) SignatureBlockSize() int {
+	switch rcd.Type() {
+	case RCDType01:
+		return RCDType01SigSize
+	default:
+		return -1
+	}
+}
+
+// Hash returns the sha256d(rcd) which is used as the Factoid Address.
+func (rcd RCD) Hash() Bytes32 {
+	return sha256d(rcd)
+}
+
+// FAAddress returns the sha256d(rcd) which is used as the Factoid Address.
+func (rcd RCD) FAAddress() FAAddress {
+	return FAAddress(rcd.Hash())
+}
+
+// sha256(sha256(data))
+func sha256d(data []byte) [sha256.Size]byte {
+	hash := sha256.Sum256(data)
+	return sha256.Sum256(hash[:])
+}
+
+// Validate verifies the RCD against the given sig and msg. Only RCDTypes in
+// the whitelist are permitted. If no whitelist is provided all supported
+// RCDTypes are allowed.
+func (rcd RCD) Validate(sig, msg []byte, whitelist ...RCDType) error {
+	if len(rcd) < 1 {
+		return fmt.Errorf("invalid RCD size")
 	}
 
-	if data[0] != 1 {
-		return fmt.Errorf("wrong rcd type byte")
+	if len(whitelist) > 0 {
+		whitemap := make(map[RCDType]struct{}, len(whitelist))
+		for _, rcdType := range whitelist {
+			whitemap[rcdType] = struct{}{}
+		}
+		if _, ok := whitemap[rcd.Type()]; !ok {
+			return fmt.Errorf("%v not accepted", rcd.Type())
+		}
 	}
 
-	copy(r[:], data[1:])
+	switch rcd.Type() {
+	case RCDType01:
+		return rcd.ValidateType01(sig, msg)
+	default:
+		return fmt.Errorf("unsupported RCD")
+	}
+}
+
+// ValidateType01 validates the RCD against sig and msg and ensures that the
+// RCD is RCDType01.
+func (rcd RCD) ValidateType01(sig, msg []byte) error {
+	if len(rcd) != RCDType01Size {
+		return fmt.Errorf("invalid RCD size")
+	}
+	if rcd.Type() != RCDType01 {
+		return fmt.Errorf("invalid RCD type")
+	}
+	if len(sig) != RCDType01SigSize {
+		return fmt.Errorf("invalid signature size")
+	}
+
+	pubKey := []byte(rcd[1:RCDType01Size])
+	if !ed25519.Verify(pubKey, msg, sig) {
+		return fmt.Errorf("invalid signature")
+	}
+
+	return nil
+}
+
+// UnmarshalBinary parses the first RCD out of data. Use len(rcd) to determine
+// how many bytes of data were read.
+func (rcd *RCD) UnmarshalBinary(data []byte) error {
+	if len(data) < 1 {
+		return fmt.Errorf("invalid RCD size")
+	}
+
+	rcdType := RCD(data).Type()
+	switch rcdType {
+	case RCDType01:
+		if len(data) < RCDType01Size {
+			return fmt.Errorf("invalid %v size", rcdType)
+		}
+		*rcd = RCD(data[:RCDType01Size])
+	default:
+		return fmt.Errorf("unknown %v", rcdType)
+	}
 
 	return nil
 }
