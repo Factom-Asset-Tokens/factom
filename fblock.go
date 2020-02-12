@@ -167,7 +167,7 @@ const (
 //
 // https://github.com/FactomProject/FactomDocs/blob/master/factomDataStructureDetails.md#factoid-block
 func (fb *FBlock) UnmarshalBinary(data []byte) (err error) {
-	if len(data) < FBlockMinHeaderSize {
+	if len(data) < FBlockHeaderMinSize {
 		return fmt.Errorf("insufficient length")
 	}
 
@@ -324,7 +324,7 @@ func (fb *FBlock) MarshalBinary() ([]byte, error) {
 
 	// Header
 	expansionSize := varintf.Encode(uint64(len(fb.Expansion)))
-	data := make([]byte, FBlockMinHeaderSize+
+	data := make([]byte, FBlockHeaderMinSize+
 		len(expansionSize)+len(fb.Expansion)+int(fb.bodySize))
 
 	var i int
