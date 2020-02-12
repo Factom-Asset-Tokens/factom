@@ -127,8 +127,8 @@ func (fb *FBlock) Get(ctx context.Context, c *Client) (err error) {
 }
 
 const (
-	//FBlockMinHeaderSize is the minimum expected FBlock Header Size.
-	FBlockMinHeaderSize = 32 + // Factoid ChainID
+	//FBlockHeaderMinSize is the minimum expected FBlock Header Size.
+	FBlockHeaderMinSize = 32 + // Factoid ChainID
 		32 + // BodyMR
 		32 + // PrevKeyMR
 		32 + // PrevLedgerKeyMR
