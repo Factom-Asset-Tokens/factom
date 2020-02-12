@@ -49,6 +49,9 @@ type Transaction struct {
 	// TimestampSalt is accurate to the millisecond
 	TimestampSalt time.Time
 
+	// Totals all denoted in factoshis. Populated by UnmarshalBinary.
+	TotalIn, TotalFCTOut, TotalECOut, TotalBurn uint64
+
 	FCTInputs  []AddressAmount
 	FCTOutputs []AddressAmount
 	ECOutputs  []AddressAmount
@@ -198,8 +201,9 @@ func (tx *Transaction) UnmarshalBinary(data []byte) error {
 
 	adrs := make([]AddressAmount, fctInputCount+fctOutputCount+ecOutputCount)
 
-	var inputs uint64
-	var outputs uint64
+	var totalIn uint64
+	var totalOut uint64
+	var totalECOut uint64
 	for j := range adrs {
 		amount, size := varintf.Decode(data[i:])
 		if size == 0 {
@@ -220,15 +224,23 @@ func (tx *Transaction) UnmarshalBinary(data []byte) error {
 		i += 32
 
 		if uint(j) < fctInputCount {
-			inputs += amount
+			totalIn += amount
 		} else {
-			outputs += amount
+			totalOut += amount
+			if uint(j) >= fctInputCount+fctOutputCount {
+				totalECOut += amount
+			}
 		}
 	}
 
-	if outputs > inputs {
+	if totalOut > totalIn {
 		return fmt.Errorf("outputs exceed inputs")
 	}
+
+	tx.TotalIn = totalIn
+	tx.TotalFCTOut = totalOut - totalECOut
+	tx.TotalECOut = totalECOut
+	tx.TotalBurn = totalIn - totalOut
 
 	ledger := data[:i]
 
