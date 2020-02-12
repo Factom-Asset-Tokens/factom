@@ -233,7 +233,8 @@ func (tx *Transaction) UnmarshalBinary(data []byte) error {
 		}
 	}
 
-	if totalOut > totalIn {
+	isCoinbaseTx := fctInputCount == 0 && ecOutputCount == 0
+	if !isCoinbaseTx && totalOut > totalIn {
 		return fmt.Errorf("outputs exceed inputs")
 	}
 
