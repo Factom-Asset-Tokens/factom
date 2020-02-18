@@ -33,10 +33,10 @@ import (
 )
 
 var rcdUnmarshalBinaryTests = []struct {
-	Name    string
-	Data    []byte
-	Error   string
-	RCDType uint64
+	Name  string
+	Data  []byte
+	Error string
+	RCDType
 	Address Bytes32
 }{
 	{
@@ -50,25 +50,25 @@ var rcdUnmarshalBinaryTests = []struct {
 		Name: "invalid (too short)",
 		Data: NewBytes(
 			""),
-		Error: "insufficient length",
+		Error: "invalid RCD size",
 	},
 	{
 		Name: "invalid (too short)",
 		Data: NewBytes(
 			"010fd93026041de6387d2dcef0917c06288e690fa7652c20f044746e787b06b2"),
-		Error: "insufficient length",
+		Error: "invalid RCDType01 size",
 	},
 	{
 		Name: "invalid (unsupported rcd type)",
 		Data: NewBytes(
 			"000fd93026041de6387d2dcef0917c06288e690fa7652c20f044746e787b06b2bd"),
-		Error: "rcd version 0 unsupported",
+		Error: "unknown RCDType00",
 	},
 	{
 		Name: "invalid (unsupported rcd type)",
 		Data: NewBytes(
 			"020fd93026041de6387d2dcef0917c06288e690fa7652c20f044746e787b06b2bd"),
-		Error: "rcd version 2 unsupported",
+		Error: "unknown RCDType02",
 	},
 }
 

@@ -175,8 +175,8 @@ func ParseEntry(e factom.Entry) (Metadata, error) {
 }
 
 const (
-	MaxDBIEHashCount       = factom.EntryMaxDataLen / 32
-	MaxLinkedDBIEHashCount = (factom.EntryMaxDataLen - 32 - 2) / 32
+	MaxDBIEHashCount       = factom.EntryMaxDataSize / 32
+	MaxLinkedDBIEHashCount = (factom.EntryMaxDataSize - 32 - 2) / 32
 )
 
 // Download all Data Block Index and Data Block Entries required to reconstruct
@@ -196,8 +196,8 @@ func (m Metadata) Download(ctx context.Context, c *factom.Client, data io.Writer
 	}
 
 	// Compute the expected DB Count.
-	totalDBCount := int(size / factom.EntryMaxDataLen)
-	if size%factom.EntryMaxDataLen > 0 {
+	totalDBCount := int(size / factom.EntryMaxDataSize)
+	if size%factom.EntryMaxDataSize > 0 {
 		totalDBCount++
 	}
 
@@ -230,7 +230,7 @@ func (m Metadata) Download(ctx context.Context, c *factom.Client, data io.Writer
 				// capacity of either the underlying cData
 				// slice, or the Entry limit.
 				if cap(dbE.Content) != origCap ||
-					(len(dbE.Content) < factom.EntryMaxDataLen &&
+					(len(dbE.Content) < factom.EntryMaxDataSize &&
 						len(dbE.Content) != cap(dbE.Content)) {
 					return fmt.Errorf(
 						"invalid Data Block Entry Content")
@@ -308,7 +308,7 @@ func (m Metadata) Download(ctx context.Context, c *factom.Client, data io.Writer
 		// Set the Content of each Data Block so the Content will get
 		// unmarshalled directly into the proper location within cData
 		// when the Data Blocks are downloaded concurrently.
-		cDataI := i * factom.EntryMaxDataLen
+		cDataI := i * factom.EntryMaxDataSize
 		dbE.Content = cData[cDataI:cDataI]
 
 		dbEs <- dbE

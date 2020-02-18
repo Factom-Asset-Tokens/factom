@@ -28,7 +28,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/AdamSLevy/jsonrpc2/v12"
+	"github.com/AdamSLevy/jsonrpc2/v14"
 )
 
 // TODO: Where can I stick something like this?

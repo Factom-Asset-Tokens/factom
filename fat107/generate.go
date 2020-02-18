@@ -81,8 +81,8 @@ func Generate(ctx context.Context, es factom.EsAddress,
 	}
 
 	// Compute the expected Data Block Entry Count.
-	dbECount := int(size / factom.EntryMaxDataLen)
-	if size%factom.EntryMaxDataLen > 0 {
+	dbECount := int(size / factom.EntryMaxDataSize)
+	if size%factom.EntryMaxDataSize > 0 {
 		dbECount++
 	}
 
@@ -106,7 +106,7 @@ func Generate(ctx context.Context, es factom.EsAddress,
 	// Generate all Data Blocks and the DBI
 	for i := 0; i < dbECount; i++ {
 		e := factom.Entry{ChainID: &chainID}
-		e.Content = cDataBuf.Next(factom.EntryMaxDataLen)
+		e.Content = cDataBuf.Next(factom.EntryMaxDataSize)
 
 		reveal, err := e.MarshalBinary()
 		if err != nil {

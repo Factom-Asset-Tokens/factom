@@ -33,7 +33,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AdamSLevy/jsonrpc2/v12"
+	"github.com/AdamSLevy/jsonrpc2/v14"
 	"github.com/AdamSLevy/retry"
 	"github.com/Factom-Asset-Tokens/factom"
 	"github.com/stretchr/testify/assert"
@@ -96,7 +96,7 @@ func TestGenerate(t *testing.T) {
 		ecEs.Es = es
 	}
 
-	size := factom.EntryMaxDataLen * 10
+	size := factom.EntryMaxDataSize * 10
 	data := make([]byte, size)
 	rand.Read(data)
 
