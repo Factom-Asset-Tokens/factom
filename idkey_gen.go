@@ -182,11 +182,11 @@ func (key *SK1Key) UnmarshalText(text []byte) error {
 
 // ID1Key computes the ID1Key corresponding to key.
 func (key SK1Key) ID1Key() ID1Key {
-	return sha256d(key.RCD())
+	return ID1Key(key.RCD().Hash())
 }
 
 // RCD computes the RCD for key.
-func (key SK1Key) RCD() []byte {
+func (key SK1Key) RCD() RCD {
 	return append([]byte{byte(RCDType01)}, key.PublicKey()[:]...)
 }
 
@@ -332,11 +332,11 @@ func (key *SK2Key) UnmarshalText(text []byte) error {
 
 // ID2Key computes the ID2Key corresponding to key.
 func (key SK2Key) ID2Key() ID2Key {
-	return sha256d(key.RCD())
+	return ID2Key(key.RCD().Hash())
 }
 
 // RCD computes the RCD for key.
-func (key SK2Key) RCD() []byte {
+func (key SK2Key) RCD() RCD {
 	return append([]byte{byte(RCDType01)}, key.PublicKey()[:]...)
 }
 
@@ -482,11 +482,11 @@ func (key *SK3Key) UnmarshalText(text []byte) error {
 
 // ID3Key computes the ID3Key corresponding to key.
 func (key SK3Key) ID3Key() ID3Key {
-	return sha256d(key.RCD())
+	return ID3Key(key.RCD().Hash())
 }
 
 // RCD computes the RCD for key.
-func (key SK3Key) RCD() []byte {
+func (key SK3Key) RCD() RCD {
 	return append([]byte{byte(RCDType01)}, key.PublicKey()[:]...)
 }
 
@@ -632,11 +632,11 @@ func (key *SK4Key) UnmarshalText(text []byte) error {
 
 // ID4Key computes the ID4Key corresponding to key.
 func (key SK4Key) ID4Key() ID4Key {
-	return sha256d(key.RCD())
+	return ID4Key(key.RCD().Hash())
 }
 
 // RCD computes the RCD for key.
-func (key SK4Key) RCD() []byte {
+func (key SK4Key) RCD() RCD {
 	return append([]byte{byte(RCDType01)}, key.PublicKey()[:]...)
 }
 

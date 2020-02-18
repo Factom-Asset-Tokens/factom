@@ -174,11 +174,11 @@ func (key *SK{{.ID}}Key) UnmarshalText(text []byte) error {
 
 // ID{{.ID}}Key computes the ID{{.ID}}Key corresponding to key.
 func (key SK{{.ID}}Key) ID{{.ID}}Key() ID{{.ID}}Key {
-	return sha256d(key.RCD())
+	return ID{{.ID}}Key(key.RCD().Hash())
 }
 
 // RCD computes the RCD for key.
-func (key SK{{.ID}}Key) RCD() []byte {
+func (key SK{{.ID}}Key) RCD() RCD {
 	return append([]byte{byte(RCDType01)}, key.PublicKey()[:]...)
 }
 
