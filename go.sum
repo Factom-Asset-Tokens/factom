@@ -4,8 +4,8 @@ github.com/AdamSLevy/jsonrpc2/v14 v14.0.0 h1:ofSXSSa9Opft4KtEcIEshKbI2CAynwtKNZj
 github.com/AdamSLevy/jsonrpc2/v14 v14.0.0/go.mod h1:ZakZtbCXxCz82NJvq7MoREtiQesnDfrtF6RFUGzQfLo=
 github.com/AdamSLevy/retry v0.0.0-20191017184328-cce921f261f4 h1:qTRFsX5Cb/zeePRrKCfLkH4FJpRTP6DbrzPofBWjF5Y=
 github.com/AdamSLevy/retry v0.0.0-20191017184328-cce921f261f4/go.mod h1:tnApKAJirDWmLW23fTAC3dX91ozZxd2yiyKO1xl4bkc=
-github.com/Factom-Asset-Tokens/base58 v0.0.0-20181227014902-61655c4dd885 h1:rfy2fwMrOZPqQgjsH7VCreGMSPzcvqQrfjeSs8nf+sY=
-github.com/Factom-Asset-Tokens/base58 v0.0.0-20181227014902-61655c4dd885/go.mod h1:RVXsRSp6VzXw5l1uiGazuf3qo23Qk0h1HzMcQk+X4LE=
+github.com/Factom-Asset-Tokens/base58 v0.0.0-20191118025050-4fa02e92ec20 h1:1nawjNicqRenJdI9MjIpWF252HxRbERWgDPnl0CYbCk=
+github.com/Factom-Asset-Tokens/base58 v0.0.0-20191118025050-4fa02e92ec20/go.mod h1:jX3P0B/GuC+e4VsNXcg/Mw+h8Vu8Ysqta4QYQAw+uY8=
 github.com/JohnCGriffin/overflow v0.0.0-20170615021017-4d914c927216 h1:2ZboyJ8vl75fGesnG9NpMTD2DyQI3FzMXy4x752rGF0=
 github.com/JohnCGriffin/overflow v0.0.0-20170615021017-4d914c927216/go.mod h1:X0CRv0ky0k6m906ixxpzmDRLvX58TFUKS2eePweuyxk=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
