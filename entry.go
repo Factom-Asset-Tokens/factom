@@ -199,9 +199,9 @@ func (e *Entry) ComposeCreate(
 func (c *Client) Commit(ctx context.Context, commit []byte) error {
 	var method string
 	switch len(commit) {
-	case commitSize:
+	case EntryCommitSize:
 		method = "commit-entry"
-	case chainCommitSize:
+	case ChainCommitSize:
 		method = "commit-chain"
 	default:
 		return fmt.Errorf("invalid commit length")
@@ -266,13 +266,13 @@ func (e *Entry) Compose(es EsAddress) (
 }
 
 const (
-	commitSize = 1 + // version
+	EntryCommitSize = 1 + // version
 		6 + // timestamp
 		32 + // entry hash
 		1 + // ec cost
 		32 + // ec pub
 		64 // sig
-	chainCommitSize = commitSize +
+	ChainCommitSize = EntryCommitSize +
 		32 + // chain id hash
 		32 // commit weld
 )
@@ -315,9 +315,9 @@ const (
 func GenerateCommit(es EsAddress, entrydata []byte, hash *Bytes32,
 	newChain bool) ([]byte, Bytes32) {
 
-	commitSize := commitSize
+	commitSize := EntryCommitSize
 	if newChain {
-		commitSize = chainCommitSize
+		commitSize = ChainCommitSize
 	}
 
 	commit := make([]byte, commitSize)
