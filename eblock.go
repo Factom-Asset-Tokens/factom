@@ -460,6 +460,7 @@ func (eb *EBlock) UnmarshalBinary(data []byte) error {
 
 			e.ChainID = eb.ChainID
 			e.Timestamp = ts
+			e.Height = eb.Height
 		}
 
 		// Skip over the minute marker.

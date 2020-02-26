@@ -41,9 +41,12 @@ import (
 type Entry struct {
 	// An Entry in EBlock.Entries after a successful call to EBlock.Get has
 	// its ChainID, Hash, and Timestamp.
-	ChainID   *Bytes32  `json:"chainid,omitempty"`
-	Hash      *Bytes32  `json:"entryhash,omitempty"`
-	Timestamp time.Time `json:"-"` // Established by EBlock
+	ChainID *Bytes32 `json:"chainid,omitempty"`
+	Hash    *Bytes32 `json:"entryhash,omitempty"`
+
+	// Established by EBlock
+	Timestamp time.Time `json:"-"`
+	Height    uint32    `json:"-"`
 
 	// Entry.Get populates the Content and ExtIDs.
 	ExtIDs  []Bytes `json:"extids"`
@@ -70,6 +73,17 @@ func (e Entry) IsPopulated() bool {
 		e.Content != nil
 }
 
+type unixSec time.Time
+
+func (s *unixSec) UnmarshalJSON(data []byte) error {
+	var sec int64
+	if err := json.Unmarshal(data, &sec); err != nil {
+		return err
+	}
+	*s = unixSec(time.Unix(sec, 0))
+	return nil
+}
+
 // Get populates e with the Entry data for its e.Hash.
 //
 // If e.Hash is nil, an error will be returned.
@@ -85,17 +99,46 @@ func (e *Entry) Get(ctx context.Context, c *Client) error {
 		return fmt.Errorf("Hash is nil")
 	}
 
-	params := struct {
-		Hash *Bytes32 `json:"hash"`
-	}{Hash: e.Hash}
-	var result struct {
-		Data Bytes `json:"data"`
+	var method string
+	var params, result interface{}
+	var data Bytes
+	if !e.Timestamp.IsZero() {
+		method = "raw-data"
+		params = struct {
+			Hash *Bytes32 `json:"hash"`
+		}{Hash: e.Hash}
+		result = &struct {
+			Data *Bytes `json:"data"`
+		}{Data: &data}
+	} else {
+		method = "receipt"
+		params = struct {
+			Hash *Bytes32 `json:"hash"`
+			Raw  bool     `json:"includerawentry"`
+		}{Hash: e.Hash, Raw: true}
+		type Entry struct {
+			Raw       *Bytes   `json:"raw"`
+			Timestamp *unixSec `json:"timestamp"`
+		}
+		type Receipt struct {
+			Entry  `json:"entry"`
+			Height *uint32 `json:"directoryblockheight"`
+		}
+		result = &struct {
+			Receipt `json:"receipt"`
+		}{Receipt: Receipt{
+			Height: &e.Height,
+			Entry: Entry{
+				Raw:       &data,
+				Timestamp: (*unixSec)(&e.Timestamp),
+			}}}
 	}
 
-	if err := c.FactomdRequest(ctx, "raw-data", params, &result); err != nil {
+	if err := c.FactomdRequest(ctx, method, params, result); err != nil {
 		return err
 	}
-	return e.UnmarshalBinary(result.Data)
+
+	return e.UnmarshalBinary(data)
 }
 
 type chainFirstEntryParams struct {

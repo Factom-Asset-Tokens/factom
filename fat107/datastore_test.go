@@ -25,6 +25,7 @@ package fat107
 import (
 	"bytes"
 	"crypto/sha256"
+	"fmt"
 	"testing"
 
 	"github.com/Factom-Asset-Tokens/factom"
@@ -56,4 +57,8 @@ func TestMetadata(t *testing.T) {
 	hash = sha256.Sum256(hash[:])
 
 	assert.EqualValues(dataHash, hash)
+	assert.EqualValues(104499, m.Entry.Height)
+	assert.EqualValues(104502, m.FullPublishHeight)
+	fmt.Println("first entry height:", m.Entry.Height)
+	fmt.Println("full publish height:", m.FullPublishHeight)
 }

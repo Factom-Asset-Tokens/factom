@@ -33,6 +33,7 @@ import (
 	"io"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/Factom-Asset-Tokens/factom"
 	"golang.org/x/sync/errgroup"
@@ -62,6 +63,10 @@ type DataStore struct {
 
 	// Optional additional JSON containing application defined Metadata.
 	Metadata json.RawMessage `json:"metadata,omitempty"`
+
+	// The earliest blockheight at which all data store entries are
+	// published.
+	FullPublishHeight uint32
 }
 
 // Compression describes compression settings for how the Data is stored.
@@ -187,7 +192,7 @@ const (
 // the DBI.
 //
 // The sha256d hash of the data written to data, is verified.
-func (m DataStore) Get(ctx context.Context, c *factom.Client, data io.Writer) error {
+func (m *DataStore) Get(ctx context.Context, c *factom.Client, data io.Writer) error {
 
 	// Get the on-chain size.
 	size := m.Size
@@ -223,7 +228,9 @@ func (m DataStore) Get(ctx context.Context, c *factom.Client, data io.Writer) er
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
+	var fullPublishHeightMtx sync.Mutex
 	for i := 0; i < n; i++ {
+		maxHeight := m.FullPublishHeight
 		g.Go(func() error {
 			for dbE := range dbEs {
 				origCap := cap(dbE.Content)
@@ -241,6 +248,14 @@ func (m DataStore) Get(ctx context.Context, c *factom.Client, data io.Writer) er
 					return fmt.Errorf(
 						"invalid Data Block Entry Content")
 				}
+				if dbE.Height > maxHeight {
+					maxHeight = dbE.Height
+				}
+			}
+			fullPublishHeightMtx.Lock()
+			defer fullPublishHeightMtx.Unlock()
+			if maxHeight > m.FullPublishHeight {
+				m.FullPublishHeight = maxHeight
 			}
 			return nil
 		})
@@ -263,6 +278,9 @@ func (m DataStore) Get(ctx context.Context, c *factom.Client, data io.Writer) er
 			dbiE := factom.Entry{Hash: &dbiEHash}
 			if err := dbiE.Get(ctx, c); err != nil {
 				return err
+			}
+			if dbiE.Height > m.FullPublishHeight {
+				m.FullPublishHeight = dbiE.Height
 			}
 
 			// Ensure there are no incomplete hashes.
@@ -299,7 +317,6 @@ func (m DataStore) Get(ctx context.Context, c *factom.Client, data io.Writer) er
 			} else if dbCount != remaining {
 				// Otherwise this DBI Entry must include all
 				// remaining DB Hashes.
-				fmt.Println("dbi E", i, dbCount, remaining)
 				return fmt.Errorf("invalid DBI Entry Content")
 			}
 
